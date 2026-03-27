@@ -1,43 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
-  User,
+  Users,
   CalendarCheck,
   CalendarPlus,
   CreditCard,
-  CheckSquare,
-  FolderKanban,
   FileText,
-  Bell,
-  LifeBuoy,
   Settings,
   LogOut,
   Moon,
   Sun,
   Menu,
   X,
-  UserCircle,
   Briefcase,
-  DollarSign,
-  Clock,
-  Award,
-  FileSignature,
-  Shield,
-  HelpCircle,
-  Key,
-  Eye,
-  EyeOff
+  UserCircle
 } from 'lucide-react';
 
-const EmployeeSidebar = () => {
+const AdminSidebar = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   // State for active menu item
   const [activeItem, setActiveItem] = useState('Dashboard');
   // State for mobile sidebar visibility
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   // State for dark mode
   const [isDarkMode, setIsDarkMode] = useState(false);
+  // State for user dropdown (optional)
+  const [showUserMenu, setShowUserMenu] = useState(false);
+
   // Toggle dark mode
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
@@ -59,52 +50,47 @@ const EmployeeSidebar = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Menu items with icons and labels
+  // Menu items for admin (core items only)
   const menuItems = [
-    { id: 1, label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
-    { id: 2, label: 'My Profile', icon: User, path: '/profile' },
-    { id: 3, label: 'Attendance', icon: CalendarCheck, path: '/attendance' },
-    { id: 4, label: 'Leave Management', icon: CalendarPlus, path: '/leave' },
-    { id: 5, label: 'Payroll / Salary', icon: CreditCard, path: '/payroll' },
-    { id: 6, label: 'Tasks / Work Assignment', icon: CheckSquare, path: '/tasks' },
-    { id: 7, label: 'Projects', icon: FolderKanban, path: '/projects' },
-    { id: 8, label: 'Documents', icon: FileText, path: '/documents' },
-    { id: 9, label: 'Notifications', icon: Bell, badge: true, path: '/notifications' },
-    { id: 10, label: 'Support / Helpdesk', icon: LifeBuoy, path: '/support' },
-    { id: 11, label: 'Settings', icon: Settings, path: '/settings' },
+    { id: 1, label: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard', badge: false },
+    { id: 2, label: 'Employees', icon: Users, path: '/admin/employees', badge: false },
+    { id: 3, label: 'Attendance', icon: CalendarCheck, path: '/admin/attendance', badge: false },
+    { id: 4, label: 'Leave Management', icon: CalendarPlus, path: '/admin/leave-management', badge: true, badgeCount: 3 },
+    { id: 5, label: 'Payroll', icon: CreditCard, path: '/admin/payroll', badge: false },
+  
+    { id: 6, label: 'Settings', icon: Settings, path: '/admin/settings', badge: false },
   ];
 
+  // Update active item based on current location
+  useEffect(() => {
+    const currentPath = location.pathname;
+    const currentMenuItem = menuItems.find(item => item.path === currentPath);
+    if (currentMenuItem) {
+      setActiveItem(currentMenuItem.label);
+    }
+  }, [location.pathname]);
+
   // Handle menu click
-  const handleMenuItemClick = (label, path) => {
+  const handleMenuItemClick = (path, label) => {
     setActiveItem(label);
-    // Close mobile menu after click
     setIsMobileMenuOpen(false);
-    // Navigate to the respective page
     navigate(path);
   };
 
   // Handle logout
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
-      // Clear employee session
-      localStorage.removeItem('employeeUser');
-      localStorage.removeItem('employeeToken');
-      sessionStorage.removeItem('employeeSession');
-      // Redirect to employee login
-      navigate('/employee/login');
+      // Clear admin session
+      localStorage.removeItem('adminUser');
+      localStorage.removeItem('adminToken');
+      sessionStorage.removeItem('adminSession');
+      // Redirect to admin login
+      navigate('/admin/login');
     }
   };
 
-  // Current date
-  const currentDate = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
-
   return (
-    <div className={`flex h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-300`}>
+    <>
       {/* Mobile Menu Button */}
       <button
         className="fixed top-4 left-4 z-50 p-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg md:hidden"
@@ -122,36 +108,22 @@ const EmployeeSidebar = () => {
         `}
       >
         <div className="flex flex-col h-full">
-          {/* Profile Card */}
+          {/* Logo */}
           <div className="p-5 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center space-x-3">
-              <div className="relative">
-                <UserCircle className="w-12 h-12 text-indigo-600 dark:text-indigo-400" />
-                <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"></span>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-800 dark:text-white">John Doe</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">EMP-12345</p>
-                <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200 rounded-full">
-                  Employee
-                </span>
-              </div>
-            </div>
-            <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-              <div className="flex items-center">
-                <Briefcase size={12} className="mr-1" />
-                <span>Senior Software Engineer</span>
-              </div>
-              <div className="flex items-center mt-1">
-                <Clock size={12} className="mr-1" />
-                <span>Joined: Jan 2023</span>
-              </div>
+            <div className="flex items-center space-x-2">
+              <Briefcase className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+              <span className="text-xl font-bold text-gray-800 dark:text-white">AdminHub</span>
             </div>
           </div>
 
-          {/* Date Display */}
-          <div className="px-5 py-2 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
-            {currentDate}
+          {/* Admin Profile Card - Simplified */}
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center space-x-3">
+              <UserCircle className="w-10 h-10 text-indigo-600 dark:text-indigo-400" />
+              <div>
+                <h3 className="font-semibold text-gray-800 dark:text-white">Admin User</h3>
+              </div>
+            </div>
           </div>
 
           {/* Navigation Menu */}
@@ -163,7 +135,7 @@ const EmployeeSidebar = () => {
                 return (
                   <li key={item.id}>
                     <button
-                      onClick={() => handleMenuItemClick(item.label, item.path)}
+                      onClick={() => handleMenuItemClick(item.path, item.label)}
                       className={`
                         flex items-center w-full px-3 py-2.5 rounded-lg transition-all duration-200
                         ${isActive
@@ -175,7 +147,9 @@ const EmployeeSidebar = () => {
                       <Icon size={20} className="flex-shrink-0" />
                       <span className="ml-3 text-sm font-medium">{item.label}</span>
                       {item.badge && (
-                        <span className="ml-auto w-2 h-2 bg-red-500 rounded-full"></span>
+                        <span className="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                          {item.badgeCount}
+                        </span>
                       )}
                     </button>
                   </li>
@@ -216,8 +190,8 @@ const EmployeeSidebar = () => {
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
-    </div>
+    </>
   );
 };
 
-export default EmployeeSidebar;
+export default AdminSidebar;
