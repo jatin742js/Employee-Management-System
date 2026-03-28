@@ -1,239 +1,189 @@
 import React, { useState } from 'react';
-import { Briefcase, Mail, ArrowRight, CheckCircle, Lock } from 'lucide-react';
+import { Mail, Building2, ArrowLeft, Send, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-export default function AdminForgotPassword() {
+export default function ForgotPassword() {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1); // 1: Email, 2: Verification, 3: Reset Password
-  const [email, setEmail] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    email: '',
+    organization: '',
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSendCode = (e) => {
-    e.preventDefault();
-    if (!email) {
-      alert('Please enter your email');
-      return;
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    setError('');
+  };
+
+  const validateForm = () => {
+    if (!formData.email.trim()) {
+      setError('Email address is required');
+      return false;
     }
-    setLoading(true);
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+    if (!formData.organization.trim()) {
+      setError('Organization name is required');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    // Simulate API call to send reset link
     setTimeout(() => {
-      setLoading(false);
-      setStep(2);
-      alert('Verification code sent to your email!');
+      console.log('Reset password request:', formData);
+      setSubmitted(true);
+      setIsSubmitting(false);
     }, 1500);
   };
 
-  const handleVerifyCode = (e) => {
-    e.preventDefault();
-    if (!verificationCode) {
-      alert('Please enter the verification code');
-      return;
-    }
-    setStep(3);
-  };
-
-  const handleResetPassword = (e) => {
-    e.preventDefault();
-    if (newPassword !== confirmPassword) {
-      alert('Passwords do not match!');
-      return;
-    }
-    if (newPassword.length < 6) {
-      alert('Password must be at least 6 characters long');
-      return;
-    }
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      alert('Password reset successful! Redirecting to login...');
-      navigate('/admin/login');
-    }, 1500);
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-900 dark:to-blue-800 px-8 py-6">
-            <div className="flex items-center gap-3 mb-2">
-              <Briefcase className="h-8 w-8 text-white" />
-              <h1 className="text-3xl font-bold text-white">AdminHub</h1>
-            </div>
-            <p className="text-blue-100">Reset your password</p>
-          </div>
-
-          {/* Progress Steps */}
-          <div className="px-8 py-4 bg-gray-50 dark:bg-gray-700/50">
-            <div className="flex items-center justify-between gap-2">
-              {[1, 2, 3].map((num) => (
-                <div key={num} className="flex items-center flex-1">
-                  <div
-                    className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${
-                      step >= num
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400'
-                    }`}
-                  >
-                    {step > num ? <CheckCircle className="h-5 w-5" /> : num}
-                  </div>
-                  {num < 3 && (
-                    <div
-                      className={`flex-1 h-1 mx-2 rounded ${
-                        step > num ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
-                      }`}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mt-2">
-              <span>Email</span>
-              <span>Verify</span>
-              <span>Reset</span>
-            </div>
-          </div>
-
-          {/* Form Content */}
-          <div className="p-8">
-            {/* Step 1: Email */}
-            {step === 1 && (
-              <form onSubmit={handleSendCode} className="space-y-6">
-                <div>
-                  <p className="text-gray-700 dark:text-gray-300 mb-4">
-                    Enter your registered email address to receive a verification code.
-                  </p>
-                  <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="admin@company.com"
-                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition flex items-center justify-center gap-2"
-                >
-                  {loading ? 'Sending...' : 'Send Verification Code'}
-                  {!loading && <ArrowRight className="h-5 w-5" />}
-                </button>
-              </form>
-            )}
-
-            {/* Step 2: Verification Code */}
-            {step === 2 && (
-              <form onSubmit={handleVerifyCode} className="space-y-6">
-                <div>
-                  <p className="text-gray-700 dark:text-gray-300 mb-4">
-                    Enter the 6-digit verification code sent to <strong>{email}</strong>
-                  </p>
-                  <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-                    Verification Code
-                  </label>
-                  <input
-                    type="text"
-                    value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value.slice(0, 6))}
-                    placeholder="000000"
-                    maxLength="6"
-                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-center text-2xl tracking-widest focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-2.5 rounded-lg transition flex items-center justify-center gap-2"
-                >
-                  Verify Code
-                  <ArrowRight className="h-5 w-5" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="w-full text-blue-600 dark:text-blue-400 hover:underline font-medium"
-                >
-                  Use different email
-                </button>
-              </form>
-            )}
-
-            {/* Step 3: Reset Password */}
-            {step === 3 && (
-              <form onSubmit={handleResetPassword} className="space-y-6">
-                <div>
-                  <p className="text-gray-700 dark:text-gray-300 mb-4">
-                    Create your new password. Make sure it's strong and secure.
-                  </p>
-                  
-                  <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-                    New Password
-                  </label>
-                  <div className="relative mb-4">
-                    <Lock className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Enter new password"
-                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-                    Confirm Password
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
-                    <input
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Re-enter password"
-                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition flex items-center justify-center gap-2"
-                >
-                  {loading ? 'Resetting...' : 'Reset Password'}
-                  {!loading && <ArrowRight className="h-5 w-5" />}
-                </button>
-              </form>
-            )}
-
-            {/* Back to Login */}
-            <p className="text-center text-gray-600 dark:text-gray-400 mt-6">
-              Remember your password?{' '}
+  if (submitted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden transition-all duration-300">
+            <div className="p-8 text-center">
+              <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="h-8 w-8 text-indigo-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                Check Your Email
+              </h2>
+              <p className="text-gray-600 mb-6">
+                We've sent a password reset link to <br />
+                <strong className="text-gray-900">{formData.email}</strong>
+              </p>
               <button
                 onClick={() => navigate('/admin/login')}
-                className="text-blue-600 dark:text-blue-400 hover:underline font-semibold"
+                className="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-500 font-medium transition"
               >
-                Login here
+                <ArrowLeft className="h-4 w-4" />
+                Back to Login
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8 bg-white rounded-2xl shadow-2xl p-8 transition-all duration-300">
+        {/* Header */}
+        <div className="text-center">
+          <div className="mx-auto h-14 w-14 bg-indigo-100 rounded-full flex items-center justify-center">
+            <Mail className="h-8 w-8 text-indigo-600" />
+          </div>
+          <h2 className="mt-4 text-3xl font-bold text-gray-900">Forgot Password</h2>
+          <p className="mt-2 text-sm text-gray-600">We'll help you reset it</p>
+        </div>
+
+        {/* Form */}
+        <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
+          {error && (
+            <div className="rounded-md bg-red-50 p-3 border border-red-200">
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
+
+          {/* Email */}
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              Work Email *
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Mail className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={formData.email}
+                onChange={handleChange}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-150"
+                placeholder="admin@company.com"
+              />
+            </div>
+          </div>
+
+          {/* Organization */}
+          <div>
+            <label htmlFor="organization" className="block text-sm font-medium text-gray-700 mb-1">
+              Organization / Company *
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Building2 className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                id="organization"
+                name="organization"
+                type="text"
+                required
+                value={formData.organization}
+                onChange={handleChange}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-150"
+                placeholder="Your Company Name"
+              />
+            </div>
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="group relative w-full flex justify-center py-2.5 px-4 border border-transparent text-sm font-semibold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? (
+              <>
+                <span>Sending Reset Link</span>
+                <svg className="animate-spin h-5 w-5 text-white ml-2" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </>
+            ) : (
+              <>
+                Send Reset Link
+                <Send className="h-4 w-4 ml-2" />
+              </>
+            )}
+          </button>
+
+          {/* Back to Login Link */}
+          <div className="text-center pt-2">
+            <p className="text-sm text-gray-600">
+              Remember your password?{' '}
+              <button
+                type="button"
+                onClick={() => navigate('/admin/login')}
+                className="font-medium text-indigo-600 hover:text-indigo-500 transition cursor-pointer bg-none border-none p-0"
+              >
+                Back to Login
               </button>
             </p>
           </div>
-        </div>
+        </form>
 
         {/* Footer */}
-        <p className="text-center text-blue-100 mt-4 text-sm">
-          © 2025 AdminHub. All rights reserved.
-        </p>
+        <div className="text-center mt-4 text-xs text-gray-500">
+          <p>Secure access for authorized administrators only</p>
+        </div>
       </div>
     </div>
   );

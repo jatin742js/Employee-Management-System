@@ -1,483 +1,297 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Users,
-  TrendingUp,
-  TrendingDown,
-  AlertCircle,
-  CheckCircle,
-  Activity,
-  BarChart3,
   UserCheck,
-  Calendar,
-  DollarSign,
-  RefreshCw,
-  Briefcase,
-  Plus,
-  ArrowUpRight,
-  ArrowDownRight,
+  UserX,
   Clock,
-  FileText,
-  Target,
-  PieChart,
   Download,
-  MoreVertical,
   Eye,
 } from 'lucide-react';
 
-const Dashboard = () => {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState('monthly');
+// Mock data
+const adminInfo = {
+  name: 'John Doe',
+  organization: 'TechCorp Inc.',
+  role: 'HR Administrator',
+};
+
+const stats = {
+  totalEmployees: 124,
+  presentToday: 98,
+  onLeave: 12,
+  pendingRequests: 5,
+};
+
+const recentLeaveRequests = [
+  { id: 1, employee: 'Emily Chen', type: 'Sick Leave', days: 2, status: 'pending', date: '2025-03-28' },
+  { id: 2, employee: 'Michael Brown', type: 'Casual Leave', days: 1, status: 'pending', date: '2025-03-28' },
+  { id: 3, employee: 'Sarah Wilson', type: 'Annual Leave', days: 5, status: 'approved', date: '2025-03-27' },
+  { id: 4, employee: 'David Lee', type: 'Sick Leave', days: 1, status: 'rejected', date: '2025-03-26' },
+];
+
+const recentEmployees = [
+  { id: 1, name: 'Alice Johnson', department: 'Engineering', position: 'Frontend Dev', joinDate: '2025-03-01' },
+  { id: 2, name: 'Bob Smith', department: 'Sales', position: 'Account Executive', joinDate: '2025-03-05' },
+  { id: 3, name: 'Carol Davis', department: 'HR', position: 'HR Generalist', joinDate: '2025-03-10' },
+  { id: 4, name: 'David Brown', department: 'Marketing', position: 'Marketing Specialist', joinDate: '2025-03-15' },
+];
+
+const attendanceData = [
+  { day: 'Mon', present: 85, total: 124 },
+  { day: 'Tue', present: 92, total: 124 },
+  { day: 'Wed', present: 88, total: 124 },
+  { day: 'Thu', present: 95, total: 124 },
+  { day: 'Fri', present: 90, total: 124 },
+];
+
+const AdminDashboard = () => {
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(true);
+  const [leaveRequests, setLeaveRequests] = useState(recentLeaveRequests);
+  const [employees, setEmployees] = useState(recentEmployees);
 
   useEffect(() => {
-    fetchDashboardData();
+    // Simulate data loading
+    const timer = setTimeout(() => setIsLoading(false), 500);
+    return () => clearTimeout(timer);
   }, []);
 
-  const fetchDashboardData = async () => {
-    setTimeout(() => {
-      setData(getDashboardData());
-      setLoading(false);
-    }, 800);
+  const handleApproveLeave = (id) => {
+    setLeaveRequests(prev =>
+      prev.map(req =>
+        req.id === id ? { ...req, status: 'approved' } : req
+      )
+    );
+    // API call would go here
   };
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchDashboardData();
-    setRefreshing(false);
+  const handleRejectLeave = (id) => {
+    setLeaveRequests(prev =>
+      prev.map(req =>
+        req.id === id ? { ...req, status: 'rejected' } : req
+      )
+    );
   };
 
-  const getDashboardData = () => ({
-    kpis: [
-      {
-        id: 1,
-        title: 'Total Employees',
-        value: '1,245',
-        change: 12.5,
-        icon: Users,
-        color: 'blue',
-        metric: '+89 this month',
-      },
-      {
-        id: 2,
-        title: 'Present Today',
-        value: '1,089',
-        change: 4.3,
-        icon: UserCheck,
-        color: 'green',
-        metric: '87.5% attendance',
-      },
-      {
-        id: 3,
-        title: 'On Leave',
-        value: '98',
-        change: -2.1,
-        icon: Calendar,
-        color: 'orange',
-        metric: '7.9% of workforce',
-      },
-      {
-        id: 4,
-        title: 'Absent',
-        value: '58',
-        change: -5.4,
-        icon: AlertCircle,
-        color: 'red',
-        metric: '4.7% of workforce',
-      },
-    ],
-    attendance: {
-      thisWeek: [
-        { day: 'Monday', present: 1089, absent: 98, leave: 58 },
-        { day: 'Tuesday', present: 1095, absent: 92, leave: 58 },
-        { day: 'Wednesday', present: 1102, absent: 85, leave: 58 },
-        { day: 'Thursday', present: 1089, absent: 98, leave: 58 },
-        { day: 'Friday', present: 1055, absent: 128, leave: 62 },
-      ],
-      avgAttendance: 87.2,
-    },
-    payroll: {
-      upcoming: '$4,280,000',
-      processed: '$3,850,000',
-      pending: '$430,000',
-      employees: 945,
-      pending_approvals: 12,
-    },
-    departments: [
-      { name: 'Engineering', employees: 285, avg_salary: '$85,000', status: 'Balanced' },
-      { name: 'Sales', employees: 156, avg_salary: '$72,000', status: 'Growing' },
-      { name: 'Marketing', employees: 98, avg_salary: '$68,000', status: 'Stable' },
-      { name: 'HR', employees: 42, avg_salary: '$65,000', status: 'Stable' },
-      { name: 'Operations', employees: 324, avg_salary: '$58,000', status: 'Balanced' },
-    ],
-    recentActivities: [
-      { id: 1, type: 'hire', message: 'New employee Sarah Johnson hired in Engineering', time: '2 hours ago', icon: Plus },
-      { id: 2, type: 'leave', message: 'Leave request approved for John Doe (5 days)', time: '4 hours ago', icon: Calendar },
-      { id: 3, type: 'payroll', message: 'Payroll for March processed successfully', time: '1 day ago', icon: DollarSign },
-      { id: 4, type: 'performance', message: 'Q1 performance reviews completed', time: '2 days ago', icon: Target },
-      { id: 5, type: 'system', message: 'System maintenance scheduled for May 15th', time: '3 days ago', icon: Clock },
-    ],
-    leaveRequests: {
-      pending: 23,
-      approved: 45,
-      rejected: 3,
-      upcoming: [
-        { employee: 'Alice Smith', days: 5, status: 'Pending', date: 'May 20-24' },
-        { employee: 'Bob Wilson', days: 3, status: 'Approved', date: 'May 15-17' },
-        { employee: 'Carol Davis', days: 7, status: 'Pending', date: 'May 25-June 2' },
-      ],
-    },
-    topPerformers: [
-      { name: 'Emma Watson', role: 'Senior Engineer', score: 98, department: 'Engineering' },
-      { name: 'Michael Brown', role: 'Sales Manager', score: 96, department: 'Sales' },
-      { name: 'Lisa Anderson', role: 'Marketing Lead', score: 94, department: 'Marketing' },
-    ],
-  });
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'pending':
+        return <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-700">Pending</span>;
+      case 'approved':
+        return <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">Approved</span>;
+      case 'rejected':
+        return <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">Rejected</span>;
+      default:
+        return null;
+    }
+  };
 
-  if (loading) {
+  const handleViewAllRequests = () => {
+    navigate('/admin/leave-management');
+  };
+
+  const handleViewAllEmployees = () => {
+    navigate('/admin/employees');
+  };
+
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-500/20 animate-pulse mb-4">
-            <BarChart3 className="w-8 h-8 text-blue-400" />
-          </div>
-          <p className="text-slate-300 font-medium">Loading Dashboard...</p>
-        </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-teal-600 text-xl">Loading dashboard...</div>
       </div>
     );
   }
 
-  const colorMap = {
-    blue: 'from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800',
-    green: 'from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border-green-200 dark:border-green-800',
-    orange: 'from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 border-orange-200 dark:border-orange-800',
-    red: 'from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 border-red-200 dark:border-red-800',
-  };
-
-  const getActivityColor = (type) => {
-    const colors = {
-      hire: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-      leave: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-      payroll: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-      performance: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-      system: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
-    };
-    return colors[type] || colors.system;
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4 md:p-8">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header with admin info */}
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">Dashboard</h1>
-            <p className="text-gray-600 dark:text-gray-400">Welcome back, Admin • Real-time analytics and management</p>
+            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+              Welcome back, {adminInfo.name}
+            </h1>
+            <p className="text-gray-500 dark:text-gray-400 mt-1">
+              {adminInfo.organization} · {adminInfo.role}
+            </p>
           </div>
           <div className="flex gap-3">
-            <button
-              onClick={handleRefresh}
-              className={`flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition ${
-                refreshing ? 'animate-spin' : ''
-              }`}
-            >
-              <RefreshCw size={18} />
-              <span className="hidden sm:inline">Refresh</span>
+            <button className="px-4 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition flex items-center gap-2">
+              <Download className="h-4 w-4" />
+              Export Report
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white border border-gray-200 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-600 transition">
-              <Download size={18} />
-              <span className="hidden sm:inline">Export</span>
+            <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition shadow-sm">
+              + Add Employee
             </button>
           </div>
         </div>
 
-        {/* Period Selector */}
-        <div className="flex gap-2">
-          {['daily', 'weekly', 'monthly', 'yearly'].map((period) => (
-            <button
-              key={period}
-              onClick={() => setSelectedPeriod(period)}
-              className={`px-4 py-2 rounded-lg font-medium capitalize transition ${
-                selectedPeriod === period
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600'
-              }`}
-            >
-              {period}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {data.kpis.map((kpi) => {
-          const Icon = kpi.icon;
-          return (
-            <div
-              key={kpi.id}
-              className={`bg-gradient-to-br ${colorMap[kpi.color]} border rounded-xl p-6 hover:shadow-lg transition`}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{kpi.title}</h3>
-                <div className={`p-2 rounded-lg bg-${kpi.color}-100 dark:bg-${kpi.color}-900/30`}>
-                  <Icon size={20} className={`text-${kpi.color}-600 dark:text-${kpi.color}-400`} />
-                </div>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">Total Employees</p>
+                <p className="text-2xl font-bold text-gray-800 dark:text-white mt-1">{stats.totalEmployees}</p>
               </div>
-              <div className="mb-3">
-                <p className="text-3xl font-bold text-gray-900 dark:text-white">{kpi.value}</p>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{kpi.metric}</p>
-              </div>
-              <div className="flex items-center gap-1">
-                {kpi.change > 0 ? (
-                  <>
-                    <ArrowUpRight size={16} className="text-green-600" />
-                    <span className="text-sm font-semibold text-green-600">+{kpi.change}%</span>
-                  </>
-                ) : (
-                  <>
-                    <ArrowDownRight size={16} className="text-red-600" />
-                    <span className="text-sm font-semibold text-red-600">{kpi.change}%</span>
-                  </>
-                )}
-                <span className="text-xs text-gray-500 dark:text-gray-400">vs last period</span>
+              <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl">
+                <Users className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
               </div>
             </div>
-          );
-        })}
-      </div>
-
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-        {/* Attendance Chart */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6 hover:shadow-lg transition">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <Activity size={20} className="text-blue-600" />
-              Weekly Attendance Overview
-            </h2>
-            <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">Avg: {data.attendance.avgAttendance}%</span>
           </div>
-          <div className="space-y-4">
-            {data.attendance.thisWeek.map((day, idx) => {
-              const total = day.present + day.absent + day.leave;
-              const presentPct = (day.present / total) * 100;
-              const absentPct = (day.absent / total) * 100;
-              const leavePct = (day.leave / total) * 100;
-              return (
-                <div key={idx}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{day.day}</span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">{day.present}/{total}</span>
-                  </div>
-                  <div className="flex h-3 gap-1 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                    <div className="bg-green-500" style={{ width: `${presentPct}%` }} />
-                    <div className="bg-red-500" style={{ width: `${absentPct}%` }} />
-                    <div className="bg-yellow-500" style={{ width: `${leavePct}%` }} />
-                  </div>
-                </div>
-              );
-            })}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">Present Today</p>
+                <p className="text-2xl font-bold text-gray-800 dark:text-white mt-1">{stats.presentToday}</p>
+                <p className="text-xs text-green-600 mt-1">+5 from yesterday</p>
+              </div>
+              <div className="p-3 bg-green-50 dark:bg-green-900/30 rounded-xl">
+                <UserCheck className="h-6 w-6 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
           </div>
-          <div className="flex gap-4 mt-6 pt-6 border-t border-gray-200 dark:border-slate-700">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-green-500" />
-              <span className="text-xs text-gray-600 dark:text-gray-400">Present</span>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">On Leave</p>
+                <p className="text-2xl font-bold text-gray-800 dark:text-white mt-1">{stats.onLeave}</p>
+              </div>
+              <div className="p-3 bg-orange-50 dark:bg-orange-900/30 rounded-xl">
+                <UserX className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-red-500" />
-              <span className="text-xs text-gray-600 dark:text-gray-400">Absent</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-yellow-500" />
-              <span className="text-xs text-gray-600 dark:text-gray-400">On Leave</span>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">Pending Requests</p>
+                <p className="text-2xl font-bold text-gray-800 dark:text-white mt-1">{stats.pendingRequests}</p>
+              </div>
+              <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-xl">
+                <Clock className="h-6 w-6 text-red-600 dark:text-red-400" />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Payroll Summary */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6 hover:shadow-lg transition">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-6">
-            <DollarSign size={20} className="text-green-600" />
-            Payroll Summary
-          </h2>
-          <div className="space-y-4">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
-              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Upcoming Payroll</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{data.payroll.upcoming}</p>
+        {/* Two-column layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Attendance Chart */}
+          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Attendance Overview</h2>
+              <select className="text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1 bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                <option>This Week</option>
+                <option>Last Week</option>
+                <option>This Month</option>
+              </select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg p-3 border border-green-200 dark:border-green-800">
-                <p className="text-xs text-gray-600 dark:text-gray-400">Processed</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-white">{data.payroll.processed}</p>
-              </div>
-              <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-lg p-3 border border-orange-200 dark:border-orange-800">
-                <p className="text-xs text-gray-600 dark:text-gray-400">Pending</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-white">{data.payroll.pending}</p>
-              </div>
+            <div className="space-y-4">
+              {attendanceData.map((day) => (
+                <div key={day.day}>
+                  <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    <span>{day.day}</span>
+                    <span>{day.present} / {day.total} present</span>
+                  </div>
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div
+                      className="bg-indigo-500 h-2 rounded-full"
+                      style={{ width: `${(day.present / day.total) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3">
-              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Processed / Pending Approvals</p>
-              <p className="text-lg font-bold text-gray-900 dark:text-white">{data.payroll.employees} / {data.payroll.pending_approvals}</p>
+          </div>
+
+          {/* Recent Leave Requests */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Recent Leave Requests</h2>
+            <div className="space-y-4">
+              {leaveRequests.map((req) => (
+                <div key={req.id} className="flex items-start justify-between pb-3 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-800 dark:text-white">{req.employee}</p>
+                    <p className="text-sm text-gray-500">{req.type} · {req.days} day(s)</p>
+                    <p className="text-xs text-gray-400 mt-1">{req.date}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {getStatusBadge(req.status)}
+                    {req.status === 'pending' && (
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handleApproveLeave(req.id)}
+                          className="p-1 text-green-600 hover:bg-green-50 rounded"
+                        >
+                          ✓
+                        </button>
+                        <button
+                          onClick={() => handleRejectLeave(req.id)}
+                          className="p-1 text-red-600 hover:bg-red-50 rounded"
+                        >
+                          ✗
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-            <button className="w-full mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium">
-              View Payroll Details
+            <button onClick={handleViewAllRequests} className="mt-4 text-indigo-600 text-sm font-medium hover:underline w-full text-center">
+              View all requests →
             </button>
           </div>
         </div>
-      </div>
 
-      {/* Leave Requests & Departments */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        {/* Leave Requests */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6 hover:shadow-lg transition">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-6">
-            <Calendar size={20} className="text-orange-600" />
-            Leave Requests
-          </h2>
-          <div className="grid grid-cols-3 gap-3 mb-6">
-            <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3 border border-orange-200 dark:border-orange-800">
-              <p className="text-xs text-gray-600 dark:text-gray-400">Pending</p>
-              <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{data.leaveRequests.pending}</p>
-            </div>
-            <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 border border-green-200 dark:border-green-800">
-              <p className="text-xs text-gray-600 dark:text-gray-400">Approved</p>
-              <p className="text-2xl font-bold text-green-600 dark:text-green-400">{data.leaveRequests.approved}</p>
-            </div>
-            <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 border border-red-200 dark:border-red-800">
-              <p className="text-xs text-gray-600 dark:text-gray-400">Rejected</p>
-              <p className="text-2xl font-bold text-red-600 dark:text-red-400">{data.leaveRequests.rejected}</p>
-            </div>
+        {/* Recent Employees Table */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Recently Added Employees</h2>
+            <button onClick={handleViewAllEmployees} className="text-indigo-600 text-sm font-medium hover:underline">View All</button>
           </div>
-          <div className="space-y-3">
-            {data.leaveRequests.upcoming.map((req, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition">
-                <div>
-                  <p className="font-semibold text-gray-900 dark:text-white text-sm">{req.employee}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{req.date} • {req.days} days</p>
-                </div>
-                <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                  req.status === 'Pending' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                }`}>
-                  {req.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Departments Overview */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6 hover:shadow-lg transition">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-6">
-            <Briefcase size={20} className="text-purple-600" />
-            Departments Overview
-          </h2>
-          <div className="space-y-3">
-            {data.departments.map((dept, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition">
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-900 dark:text-white text-sm">{dept.name}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{dept.employees} employees • {dept.avg_salary}</p>
-                </div>
-                <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                  dept.status === 'Balanced' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                  dept.status === 'Growing' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                  'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
-                }`}>
-                  {dept.status}
-                </span>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 dark:bg-gray-700/50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Join Date</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {employees.map((emp) => (
+                  <tr key={emp.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 font-semibold text-sm">
+                          {emp.name.charAt(0)}
+                        </div>
+                        <span className="ml-3 font-medium text-gray-800 dark:text-white">{emp.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">{emp.department}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">{emp.position}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">{emp.joinDate}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <button className="text-gray-400 hover:text-indigo-600 transition">
+                        <Eye className="h-5 w-5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
-      </div>
 
-      {/* Bottom Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Recent Activities */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6 hover:shadow-lg transition">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-6">
-            <Clock size={20} className="text-blue-600" />
-            Recent Activities
-          </h2>
-          <div className="space-y-3">
-            {data.recentActivities.map((activity) => {
-              const ActivityIcon = activity.icon;
-              return (
-                <div key={activity.id} className="flex gap-3 p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition">
-                  <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${getActivityColor(activity.type)}`}>
-                    <ActivityIcon size={16} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{activity.message}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{activity.time}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <button className="w-full mt-4 px-4 py-2 border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition font-medium">
-            View All Activities
-          </button>
-        </div>
-
-        {/* Top Performers */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6 hover:shadow-lg transition">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-6">
-            <Target size={20} className="text-purple-600" />
-            Top Performers
-          </h2>
-          <div className="space-y-4">
-            {data.topPerformers.map((performer, idx) => (
-              <div key={idx} className="relative">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <p className="font-semibold text-gray-900 dark:text-white text-sm">{performer.name}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{performer.role}</p>
-                  </div>
-                  <span className="text-lg font-bold text-purple-600">{performer.score}%</span>
-                </div>
-                <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
-                  <div
-                    className="bg-gradient-to-r from-purple-500 to-purple-600 h-2 rounded-full"
-                    style={{ width: `${performer.score}%` }}
-                  />
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{performer.department}</p>
-              </div>
-            ))}
-          </div>
-          <button className="w-full mt-6 px-4 py-2 border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition font-medium">
-            View Performance Details
-          </button>
-        </div>
-      </div>
-
-      {/* Quick Actions Footer */}
-      <div className="mt-8 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { label: 'Add Employee', icon: Plus },
-            { label: 'Process Payroll', icon: DollarSign },
-            { label: 'Manage Leave', icon: Calendar },
-            { label: 'View Reports', icon: BarChart3 },
-          ].map((action, idx) => {
-            const Icon = action.icon;
-            return (
-              <button
-                key={idx}
-                className="flex items-center justify-center gap-2 p-3 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border border-blue-200 dark:border-blue-800 rounded-lg hover:shadow-md transition font-semibold text-blue-700 dark:text-blue-400 text-sm"
-              >
-                <Icon size={18} />
-                <span className="hidden sm:inline">{action.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        
       </div>
     </div>
   );
 };
 
-export default Dashboard;
+export default AdminDashboard;

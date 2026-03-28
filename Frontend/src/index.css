@@ -9,3 +9,53 @@
 .font-playfair{
   font-family: Playfair !important;
 }
+
+/* Completely hide browser password management UI */
+input[type="password"] {
+  -webkit-text-security: disc;
+  background-clip: content-box;
+  background-image: none !important;
+}
+
+/* Hide all password field decorations and icons */
+input[type="password"]::-webkit-calendar-picker-indicator,
+input[type="password"]::-webkit-clear-button,
+input[type="password"]::-webkit-textfield-decoration-container,
+input[type="password"]::-webkit-search-cancel-button,
+input[type="password"]::-webkit-outer-spin-button,
+input[type="password"]::-webkit-inner-spin-button,
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-webkit-generate-password-button {
+  display: none !important;
+  visibility: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  left: -9999px !important;
+  opacity: 0 !important;
+}
+
+/* Remove all pseudo-elements */
+input[type="password"]::after,
+input[type="password"]::before {
+  display: none !important;
+}
+
+/* Chrome autofill styling */
+input[type="password"]:autofill,
+input[type="password"]:autofill:hover,
+input[type="password"]:autofill:focus {
+  -webkit-autofill: none !important;
+  background: white !important;
+  background-image: none !important;
+  border-color: #d1d5db !important;
+}
+
+/* Edge browser password reveal button */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none !important;
+}

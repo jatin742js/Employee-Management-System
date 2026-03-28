@@ -55,7 +55,7 @@ const AdminSidebar = () => {
     { id: 1, label: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard', badge: false },
     { id: 2, label: 'Employees', icon: Users, path: '/admin/employees', badge: false },
     { id: 3, label: 'Attendance', icon: CalendarCheck, path: '/admin/attendance', badge: false },
-    { id: 4, label: 'Leave Management', icon: CalendarPlus, path: '/admin/leave-management', badge: true, badgeCount: 3 },
+    { id: 4, label: 'Leave Management', icon: CalendarPlus, path: '/admin/leave-management', badge: false },
     { id: 5, label: 'Payroll', icon: CreditCard, path: '/admin/payroll', badge: false },
   
     { id: 6, label: 'Settings', icon: Settings, path: '/admin/settings', badge: false },
