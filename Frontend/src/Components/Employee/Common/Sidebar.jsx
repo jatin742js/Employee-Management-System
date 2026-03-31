@@ -61,17 +61,10 @@ const EmployeeSidebar = () => {
 
   // Menu items with icons and labels
   const menuItems = [
-    { id: 1, label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
-    { id: 2, label: 'My Profile', icon: User, path: '/profile' },
-    { id: 3, label: 'Attendance', icon: CalendarCheck, path: '/attendance' },
-    { id: 4, label: 'Leave Management', icon: CalendarPlus, path: '/leave' },
-    { id: 5, label: 'Payroll / Salary', icon: CreditCard, path: '/payroll' },
-    { id: 6, label: 'Tasks / Work Assignment', icon: CheckSquare, path: '/tasks' },
-    { id: 7, label: 'Projects', icon: FolderKanban, path: '/projects' },
-    { id: 8, label: 'Documents', icon: FileText, path: '/documents' },
-    { id: 9, label: 'Notifications', icon: Bell, badge: true, path: '/notifications' },
-    { id: 10, label: 'Support / Helpdesk', icon: LifeBuoy, path: '/support' },
-    { id: 11, label: 'Settings', icon: Settings, path: '/settings' },
+    { id: 1, label: 'Dashboard', icon: LayoutDashboard, path: '/employee/dashboard' },
+    { id: 2, label: 'Attendance', icon: CalendarCheck, path: '/employee/attendance' },
+    { id: 3, label: 'Payroll / Salary', icon: CreditCard, path: '/employee/payroll' },
+    { id: 4, label: 'Settings', icon: Settings, path: '/employee/settings' },
   ];
 
   // Handle menu click
@@ -172,7 +165,7 @@ const EmployeeSidebar = () => {
                         }
                       `}
                     >
-                      <Icon size={20} className="flex-shrink-0" />
+                      <Icon size={20} className="shrink-0" />
                       <span className="ml-3 text-sm font-medium">{item.label}</span>
                       {item.badge && (
                         <span className="ml-auto w-2 h-2 bg-red-500 rounded-full"></span>

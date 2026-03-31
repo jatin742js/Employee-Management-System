@@ -36,10 +36,11 @@ const Login = () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Store user data in localStorage
-      localStorage.setItem('user', JSON.stringify({ email, rememberMe }));
+      localStorage.setItem('employeeUser', JSON.stringify({ email, rememberMe }));
+      localStorage.setItem('employeeToken', 'demo-token');
       
       // Redirect to dashboard
-      navigate('/dashboard');
+      navigate('/employee/dashboard');
     } catch (err) {
       setError('Invalid credentials. Please try again.');
     } finally {
@@ -48,7 +49,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-700 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-500 to-indigo-700 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-2xl shadow-2xl transition-all duration-300">
         {/* Header */}
         <div className="text-center">
@@ -70,7 +71,7 @@ const Login = () => {
           {error && (
             <div className="rounded-md bg-red-50 p-4 border border-red-200">
               <div className="flex">
-                <div className="flex-shrink-0">
+                <div className="shrink-0">
                   <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                   </svg>
@@ -153,7 +154,7 @@ const Login = () => {
           </div>
           
           {/* Remember me & Forgot password */}
-          <div className="flex items-center justify-between">
+          {/* <div className="flex items-center justify-between">
             <div className="flex items-center">
               <input
                 id="remember-me"
@@ -173,7 +174,7 @@ const Login = () => {
                 Forgot password?
               </a>
             </div>
-          </div>
+          </div> */}
           
           {/* Submit Button */}
           <div>
@@ -194,20 +195,20 @@ const Login = () => {
           </div>
           
           {/* Demo credentials hint (optional) */}
-          <div className="text-center text-xs text-gray-500 mt-2">
+          {/* <div className="text-center text-xs text-gray-500 mt-2">
             <p>Demo: admin@example.com / any password</p>
-          </div>
+          </div> */}
         </form>
         
         {/* Footer signup link if needed */}
-        <div className="text-center mt-4">
+        {/* <div className="text-center mt-4">
           <p className="text-sm text-gray-600">
             Don't have an account?{' '}
             <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500">
               Contact admin
             </a>
           </p>
-        </div>
+        </div> */}
       </div>
     </div>
   );

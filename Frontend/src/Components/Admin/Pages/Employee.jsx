@@ -320,7 +320,7 @@ export default function EmployeeTableUI() {
                         {activeDropdown === emp.id && (
                           <div className="absolute right-0 top-10 z-40 bg-white border border-slate-200 rounded-2xl shadow-lg overflow-hidden w-56 animate-in fade-in duration-150">
                             {/* Header Section */}
-                            <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
+                            <div className="px-4 py-3 bg-linear-to-r from-slate-50 to-slate-100 border-b border-slate-200">
                               <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Actions</p>
                             </div>
                             
@@ -333,7 +333,7 @@ export default function EmployeeTableUI() {
                               }}
                               className="flex items-center gap-3 w-full px-4 py-3 hover:bg-blue-50 text-slate-700 text-sm border-b border-slate-100 transition duration-150"
                             >
-                              <Eye size={16} className="text-blue-500 flex-shrink-0" />
+                              <Eye size={16} className="text-blue-500 shrink-0" />
                               <span className="font-medium">View Profile</span>
                             </button>
 
@@ -357,7 +357,7 @@ export default function EmployeeTableUI() {
                               }}
                               className="flex items-center gap-3 w-full px-4 py-3 hover:bg-amber-50 text-slate-700 text-sm border-b border-slate-100 transition duration-150"
                             >
-                              <Edit size={16} className="text-amber-500 flex-shrink-0" />
+                              <Edit size={16} className="text-amber-500 shrink-0" />
                               <span className="font-medium">Edit Employee</span>
                             </button>
 
@@ -396,7 +396,7 @@ export default function EmployeeTableUI() {
                               }}
                               className="flex items-center gap-3 w-full px-4 py-3 hover:bg-cyan-50 text-slate-700 text-sm border-b border-slate-100 transition duration-150"
                             >
-                              <Lock size={16} className="text-cyan-500 flex-shrink-0" />
+                              <Lock size={16} className="text-cyan-500 shrink-0" />
                               <span className="font-medium">Reset Password</span>
                             </button>
 
@@ -408,7 +408,7 @@ export default function EmployeeTableUI() {
                               }}
                               className="flex items-center gap-3 w-full px-4 py-3 hover:bg-red-50 text-red-600 text-sm transition duration-150"
                             >
-                              <Trash2 size={16} className="text-red-500 flex-shrink-0" />
+                              <Trash2 size={16} className="text-red-500 shrink-0" />
                               <span className="font-medium">Delete Employee</span>
                             </button>
                           </div>

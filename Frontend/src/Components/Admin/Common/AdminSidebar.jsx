@@ -144,7 +144,7 @@ const AdminSidebar = () => {
                         }
                       `}
                     >
-                      <Icon size={20} className="flex-shrink-0" />
+                      <Icon size={20} className="shrink-0" />
                       <span className="ml-3 text-sm font-medium">{item.label}</span>
                       {item.badge && (
                         <span className="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
