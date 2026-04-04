@@ -48,11 +48,11 @@ const App = () => {
           <Route path="settings" element={<Settings />} />
         </Route>
 
-{/* Default redirect to Admin Login */}
-        <Route path="/" element={<Navigate to="/admin/login" />} />
+{/* Default redirect to Employee Login */}
+        <Route path="/" element={<Navigate to="/employee/login" />} />
         
         {/* Catch-all for undefined routes */}
-        <Route path="*" element={<Navigate to="/admin/login" />} />
+        <Route path="*" element={<Navigate to="/employee/login" />} />
       </Routes>
     </Router>
   )
