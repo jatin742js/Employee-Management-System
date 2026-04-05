@@ -63,7 +63,7 @@ const EmployeeSidebar = () => {
   const menuItems = [
     { id: 1, label: 'Dashboard', icon: LayoutDashboard, path: '/employee/dashboard' },
     { id: 2, label: 'Attendance', icon: CalendarCheck, path: '/employee/attendance' },
-    { id: 3, label: 'Leave Management', icon: CalendarCheck, path: '/employee/leave' },
+    { id: 3, label: 'Leave Management', icon: CalendarCheck, path: '/employee/leave-management' },
 
     { id: 4, label: 'Payroll / Salary', icon: CreditCard, path: '/employee/payroll' },
     { id: 5, label: 'Settings', icon: Settings, path: '/employee/settings' },

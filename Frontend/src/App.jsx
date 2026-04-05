@@ -6,7 +6,7 @@ import EmployeeLogin from './Components/Employee/Pages/Login'
 import EmployeeDashboard from './Components/Employee/Pages/Dashboard'
 import Attendance from './Components/Employee/Pages/Attendance'
 import Payroll from './Components/Employee/Pages/Payroll'
-
+import LeaveManagement from './Components/Employee/Pages/LeaveManagement'
 import Settings from './Components/Employee/Pages/Settings'
 import EmployeeLayout from './Components/Employee/Layout/EmployeeLayout'
 
@@ -44,6 +44,7 @@ const App = () => {
         <Route path="/employee" element={<EmployeeLayout />}>
           <Route path="dashboard" element={<EmployeeDashboard />} />
           <Route path="attendance" element={<Attendance />} />
+          <Route path="leave-management" element={<LeaveManagement />} />
           <Route path="payroll" element={<Payroll />} />
           <Route path="settings" element={<Settings />} />
         </Route>

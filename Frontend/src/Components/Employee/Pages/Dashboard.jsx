@@ -30,27 +30,19 @@ const Dashboard = () => {
       trend: '+2.5% from last month',
     },
     {
-      title: 'Current Salary',
-      value: '₹50,000',
-      unit: 'per month',
-      icon: DollarSign,
-      color: 'cyan',
-      trend: 'On schedule',
-    },
-    {
-      title: 'Leaves Remaining',
-      value: '8',
-      unit: 'days left',
+      title: 'Total Leaves',
+      value: '12',
+      unit: 'days available',
       icon: Calendar,
-      color: 'emerald',
-      trend: '25 used this year',
+      color: 'cyan',
+      trend: '5 used this year',
     },
     {
       title: 'Attendance',
       value: '98%',
       unit: 'attendance rate',
       icon: UserCheck,
-      color: 'blue',
+      color: 'emerald',
       trend: 'Excellent performance',
     },
   ];
@@ -70,25 +62,25 @@ const Dashboard = () => {
   ];
 
   const colorMap = {
-    teal: { bg: 'bg-teal-50', border: 'border-teal-200', text: 'text-teal-700', icon: 'bg-teal-100' },
-    cyan: { bg: 'bg-cyan-50', border: 'border-cyan-200', text: 'text-cyan-700', icon: 'bg-cyan-100' },
-    emerald: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', icon: 'bg-emerald-100' },
-    blue: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', icon: 'bg-blue-100' },
+    teal: { bg: 'bg-white', border: 'border-teal-200', text: 'text-teal-700', icon: 'bg-teal-100' },
+    cyan: { bg: 'bg-white', border: 'border-cyan-200', text: 'text-cyan-700', icon: 'bg-cyan-100' },
+    emerald: { bg: 'bg-white', border: 'border-emerald-200', text: 'text-emerald-700', icon: 'bg-emerald-100' },
+    blue: { bg: 'bg-white', border: 'border-blue-200', text: 'text-blue-700', icon: 'bg-blue-100' },
   };
 
   return (
-    <div className="min-h-screen bg-white py-8 px-4">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100  py-8 px-4">
       <div className="max-w-5xl ml-8 mr-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Welcome, {employeeData.name} 👋</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Welcome, {employeeData.name} </h1>
           <p className="text-gray-600 text-sm mt-2">
             {employeeData.company} · {employeeData.department}
           </p>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           {statsData.map((stat, index) => {
             const Icon = stat.icon;
             const colors = colorMap[stat.color];
@@ -118,23 +110,30 @@ const Dashboard = () => {
           {/* Upcoming Events - Wider */}
           <div className="lg:col-span-2 bg-white border border-gray-200 rounded-lg overflow-hidden">
             <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">📅 Upcoming Events</h2>
+              <h2 className="text-lg font-semibold text-gray-900">� Notifications</h2>
             </div>
             <div className="p-6">
               <div className="space-y-3">
                 {upcomingEvents.map((event) => (
                   <div
                     key={event.id}
-                    className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-200 flex items-center justify-between"
+                    className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-200 flex items-start justify-between cursor-pointer"
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{event.icon}</span>
-                      <div>
+                    <div className="flex items-start gap-3 flex-1">
+                      <div className="mt-0.5">
+                        <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                      </div>
+                      <div className="flex-1">
                         <p className="text-sm font-medium text-gray-900">{event.title}</p>
-                        <p className="text-xs text-gray-500">{event.date}</p>
+                        <p className="text-xs text-gray-500 mt-1">{event.date}</p>
                       </div>
                     </div>
-                    <div className="px-2.5 py-1 bg-teal-50 text-teal-700 rounded text-xs font-medium border border-teal-200">
+                    <div className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                      event.type === 'review' ? 'bg-purple-100 text-purple-700' :
+                      event.type === 'meeting' ? 'bg-blue-100 text-blue-700' :
+                      event.type === 'deadline' ? 'bg-red-100 text-red-700' :
+                      'bg-green-100 text-green-700'
+                    }`}>
                       {event.type}
                     </div>
                   </div>
@@ -172,73 +171,8 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Quick Stats Section */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Quick Links */}
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">⚡ Quick Actions</h2>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-2 gap-3">
-                <button className="p-3 border border-gray-200 rounded-lg hover:bg-teal-50 hover:border-teal-200 transition-all text-sm font-medium text-gray-900">
-                  Request Leave
-                </button>
-                <button className="p-3 border border-gray-200 rounded-lg hover:bg-teal-50 hover:border-teal-200 transition-all text-sm font-medium text-gray-900">
-                  View Pay Slip
-                </button>
-                <button className="p-3 border border-gray-200 rounded-lg hover:bg-teal-50 hover:border-teal-200 transition-all text-sm font-medium text-gray-900">
-                  Update Profile
-                </button>
-                <button className="p-3 border border-gray-200 rounded-lg hover:bg-teal-50 hover:border-teal-200 transition-all text-sm font-medium text-gray-900">
-                  Download Forms
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Performance Summary */}
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">📈 Performance Summary</h2>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">Productivity</span>
-                    <span className="text-sm font-semibold text-teal-700">92%</span>
-                  </div>
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div className="h-full w-[92%] bg-teal-500 rounded-full"></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">Attendance</span>
-                    <span className="text-sm font-semibold text-teal-700">98%</span>
-                  </div>
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div className="h-full w-[98%] bg-teal-500 rounded-full"></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">Projects Completed</span>
-                    <span className="text-sm font-semibold text-teal-700">87%</span>
-                  </div>
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div className="h-full w-[87%] bg-teal-500 rounded-full"></div>
-                  </div>
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 mt-4 text-center">Great job! Keep up the excellent work.</p>
-            </div>
-          </div>
-        </div>
-
         {/* Announcements */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        {/* <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex gap-3">
             <Bell size={20} className="text-blue-700 shrink-0 mt-0.5" />
             <div>
@@ -248,7 +182,7 @@ const Dashboard = () => {
               </p>
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );

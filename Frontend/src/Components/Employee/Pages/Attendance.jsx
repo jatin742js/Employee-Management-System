@@ -152,7 +152,7 @@ export default function AttendanceDashboard() {
   const isMarkedPresent = checkInTime !== null;
 
   return (
-    <div className="min-h-screen bg-white py-8 px-4">
+    <div className="min-h-screen  bg-linear-to-br from-gray-50 to-gray-100  py-8 px-4">
       <div className="max-w-6xl ml-8 mr-8 space-y-6">
 
         {/* Header */}
