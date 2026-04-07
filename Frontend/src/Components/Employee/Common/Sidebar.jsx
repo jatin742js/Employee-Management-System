@@ -66,7 +66,7 @@ const EmployeeSidebar = () => {
     { id: 3, label: 'Leave Management', icon: CalendarCheck, path: '/employee/leave-management' },
 
     { id: 4, label: 'Payroll / Salary', icon: CreditCard, path: '/employee/payroll' },
-    { id: 5, label: 'Settings', icon: Settings, path: '/employee/settings' },
+    { id: 5, label: 'Settings', icon: Settings, path: '/employee/settings' },   
   ];
 
   // Handle menu click
@@ -118,7 +118,7 @@ const EmployeeSidebar = () => {
       >
         <div className="flex flex-col h-full">
           {/* Profile Card */}
-          <div className="p-5 border-b border-gray-200 dark:border-gray-700">
+          <div className="p-5 border-b border-gray-200 dark:border-gray-700">   
             <div className="flex items-center space-x-3">
               <div className="relative">
                 <UserCircle className="w-12 h-12 text-indigo-600 dark:text-indigo-400" />
@@ -132,7 +132,7 @@ const EmployeeSidebar = () => {
                 </span>
               </div>
             </div>
-            <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+            <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">     
               <div className="flex items-center">
                 <Briefcase size={12} className="mr-1" />
                 <span>Senior Software Engineer</span>
@@ -184,7 +184,7 @@ const EmployeeSidebar = () => {
             {/* Dark Mode Toggle */}
             <button
               onClick={toggleDarkMode}
-              className="flex items-center w-full px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
+              className="flex items-center w-full px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"    
             >
               {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
               <span className="ml-3 text-sm font-medium">
@@ -195,7 +195,7 @@ const EmployeeSidebar = () => {
             {/* Logout Button */}
             <button
               onClick={handleLogout}
-              className="flex items-center w-full px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition"
+              className="flex items-center w-full px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition"      
             >
               <LogOut size={20} />
               <span className="ml-3 text-sm font-medium">Logout</span>
@@ -207,7 +207,7 @@ const EmployeeSidebar = () => {
       {/* Overlay for mobile */}
       {isMobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"       
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}

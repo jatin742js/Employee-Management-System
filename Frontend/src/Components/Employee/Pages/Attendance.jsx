@@ -25,34 +25,37 @@ export default function AttendanceDashboard() {
   
   const [attendanceHistory, setAttendanceHistory] = useState([
     {
-      date: "5/4/26",
-      month: "April",
+      date: "Mar 31, 2026",
+      month: "March",
       year: "2026",
-      arrival: "11:56 AM",
-      departure: "6:01 PM",
-      hours: "6:05 hours",
-      progress: 75,
-      status: "Late",
+      checkIn: "01:30 PM",
+      checkOut: "-",
+      hours: "5h 27m (ongoing)",
+      dayType: "In Progress",
+      status: "Present",
+      progress: 65,
     },
     {
-      date: "4/4/26",
-      month: "April",
+      date: "Mar 30, 2026",
+      month: "March",
       year: "2026",
-      arrival: "10:11 AM",
-      departure: "8:53 PM",
-      hours: "10:42 hours",
+      checkIn: "09:45 AM",
+      checkOut: "06:15 PM",
+      hours: "8h 30m",
+      dayType: "Regular",
+      status: "Present",
       progress: 100,
-      status: "On Time",
     },
     {
-      date: "3/4/26",
-      month: "April",
+      date: "Mar 29, 2026",
+      month: "March",
       year: "2026",
-      arrival: "9:45 AM",
-      departure: "4:03 PM",
-      hours: "5:18 hours",
-      progress: 60,
-      status: "Late",
+      checkIn: "10:15 AM",
+      checkOut: "05:45 PM",
+      hours: "7h 30m",
+      dayType: "Regular",
+      status: "Present",
+      progress: 85,
     },
   ]);
 
@@ -90,8 +93,29 @@ export default function AttendanceDashboard() {
       return;
     }
     if (!checkInTime) {
-      setCheckInTime(getCurrentTime());
+      const time = getCurrentTime();
+      setCheckInTime(time);
       setLastCheckInDate(todayDateString);
+      
+      // Add entry to table immediately
+      const today = new Date();
+      const todayDate = `${months[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`;
+      const todayMonth = months[today.getMonth()];
+      const todayYear = today.getFullYear().toString();
+      
+      const todayEntry = {
+        date: todayDate,
+        month: todayMonth,
+        year: todayYear,
+        checkIn: time,
+        checkOut: "-",
+        hours: "calculating...",
+        dayType: "In Progress",
+        status: "Present",
+        progress: 0
+      };
+      
+      setAttendanceHistory([todayEntry, ...attendanceHistory]);
     }
   };
 
@@ -100,30 +124,19 @@ export default function AttendanceDashboard() {
       const time = getCurrentTime();
       setCheckOutTime(time);
       
-      // Add to history
+      // Update the first entry (today's entry) with checkout time
       const { hours, progress } = calculateHours(checkInTime, time);
-      const today = new Date();
-      const todayDate = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear().toString().slice(-2)}`;
-      const todayMonth = months[today.getMonth()];
-      const todayYear = today.getFullYear().toString();
       
-      // Determine status
-      let status = "On Time";
-      if (progress < 80) status = "Late";
-      if (progress === 0) status = "Absent";
-      
-      const todayEntry = {
-        date: "Today",
-        month: todayMonth,
-        year: todayYear,
-        arrival: checkInTime,
-        departure: time,
+      const updatedHistory = [...attendanceHistory];
+      updatedHistory[0] = {
+        ...updatedHistory[0],
+        checkOut: time,
         hours: hours,
-        progress: progress,
-        status: status
+        dayType: "Regular",
+        progress: progress
       };
       
-      setAttendanceHistory([todayEntry, ...attendanceHistory]);
+      setAttendanceHistory(updatedHistory);
       
       // Auto reset after 2 seconds for next day
       setTimeout(() => {
@@ -144,9 +157,7 @@ export default function AttendanceDashboard() {
     item.year === selectedYear
   );
 
-  const onTimeCount = filteredAttendance.filter(item => item.status === "On Time").length;
-  const lateCount = filteredAttendance.filter(item => item.status === "Late").length;
-  const absentCount = filteredAttendance.filter(item => item.status === "Absent").length;
+  const presentCount = filteredAttendance.filter(item => item.status === "Present").length;
   const totalDays = filteredAttendance.length;
 
   const isMarkedPresent = checkInTime !== null;
@@ -160,9 +171,7 @@ export default function AttendanceDashboard() {
           <h1 className="text-3xl font-bold text-gray-900">
             Good afternoon, Sourav!
           </h1>
-          <p className="text-gray-500 text-sm mt-1">
-            You have 2 leave request pending.
-          </p>
+         
         </div>
 
         {/* Top Section */}
@@ -173,9 +182,9 @@ export default function AttendanceDashboard() {
             <div className="flex justify-between items-center mb-6">
               <h2 className="font-semibold text-gray-900 text-base">Today</h2>
               <span className={`text-white text-xs px-2.5 py-1 rounded-full font-medium ${
-                checkOutTime ? "bg-emerald-500" : checkInTime ? "bg-blue-500" : "bg-red-500"
+                checkOutTime ? "bg-teal-500" : checkInTime ? "bg-teal-500" : "bg-gray-500"
               }`}>
-                {checkOutTime ? "Completed" : checkInTime ? "In Progress" : "Absent"}
+                {checkOutTime ? "Present" : checkInTime ? "Present" : "Not Marked"}
               </span>
             </div>
 
@@ -188,7 +197,7 @@ export default function AttendanceDashboard() {
                     cy="60"
                     r="54"
                     fill="none"
-                    stroke={checkOutTime ? "#10b981" : checkInTime ? "#3b82f6" : "#f59e0b"}
+                    stroke={checkOutTime ? "#14b8a6" : checkInTime ? "#14b8a6" : "#f59e0b"}
                     strokeWidth="12"
                     strokeDasharray={`${(checkOutTime ? 100 : checkInTime ? 50 : 67) / 100 * 339.3} 339.3`}
                   />
@@ -238,9 +247,9 @@ export default function AttendanceDashboard() {
                 lastCheckInDate === todayDateString && !checkInTime && !checkOutTime
                   ? "bg-gray-400 cursor-not-allowed"
                   : !checkInTime
-                  ? "bg-blue-600 hover:bg-blue-700" 
+                  ? "bg-teal-600 hover:bg-teal-700" 
                   : !checkOutTime
-                  ? "bg-green-600 hover:bg-green-700"
+                  ? "bg-teal-600 hover:bg-teal-700"
                   : "bg-gray-500 hover:bg-gray-600"
               }`}
             >
@@ -257,13 +266,17 @@ export default function AttendanceDashboard() {
           {/* Stats - Column 1 */}
           <div className="space-y-4">
             <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
-              <Clock3 className="text-teal-600 mb-3 w-5 h-5" />
+              <div className="inline-flex items-center justify-center w-10 h-10 rounded border border-teal-200 bg-teal-50 mb-3">
+                <Clock3 className="text-teal-600 w-5 h-5" />
+              </div>
               <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Average hours</p>
               <h2 className="text-xl font-bold text-gray-900">7h 17mins</h2>
             </div>
 
             <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
-              <LogIn className="text-orange-500 mb-3 w-5 h-5" />
+              <div className="inline-flex items-center justify-center w-10 h-10 rounded border border-orange-200 bg-orange-50 mb-3">
+                <LogIn className="text-orange-500 w-5 h-5" />
+              </div>
               <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Average check-in</p>
               <h2 className="text-xl font-bold text-gray-900">10:33 AM</h2>
             </div>
@@ -272,15 +285,19 @@ export default function AttendanceDashboard() {
           {/* Stats - Column 2 */}
           <div className="space-y-4">
             <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
-              <LogOut className="text-teal-600 mb-3 w-5 h-5" />
+              <div className="inline-flex items-center justify-center w-10 h-10 rounded border border-teal-200 bg-teal-50 mb-3">
+                <LogOut className="text-teal-600 w-5 h-5" />
+              </div>
               <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Average check-out</p>
               <h2 className="text-xl font-bold text-gray-900">19:12 PM</h2>
             </div>
 
             <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
-              <CheckCircle2 className="text-emerald-600 mb-3 w-5 h-5" />
+              <div className="inline-flex items-center justify-center w-10 h-10 rounded border border-teal-200 bg-teal-50 mb-3">
+                <CheckCircle2 className="text-teal-600 w-5 h-5" />
+              </div>
               <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">On-time arrival</p>
-              <h2 className="text-xl font-bold text-emerald-600">98.56%</h2>
+              <h2 className="text-xl font-bold text-black">98.56%</h2>
             </div>
           </div>
 
@@ -293,26 +310,14 @@ export default function AttendanceDashboard() {
 
             <div className="space-y-3 mb-6">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-teal-600 font-semibold">● {onTimeCount}</span>
-                <span className="text-gray-600 text-xs">on time</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-amber-500 font-semibold">● {absentCount}</span>
-                <span className="text-gray-600 text-xs">Work from home</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-red-500 font-semibold">● {lateCount}</span>
-                <span className="text-gray-600 text-xs">late attendance</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-400 font-semibold">● {absentCount}</span>
-                <span className="text-gray-600 text-xs">absent</span>
+                <span className="text-teal-600 font-semibold">● {presentCount}</span>
+                <span className="text-gray-600 text-xs">Present</span>
               </div>
             </div>
 
             <div className="flex justify-center py-4 border-t border-gray-100">
               <div className="text-center">
-                <h3 className="text-2xl font-bold text-gray-900">{onTimeCount + lateCount}</h3>
+                <h3 className="text-2xl font-bold text-gray-900">{presentCount}</h3>
                 <p className="text-xs text-gray-500">/{totalDays} days</p>
               </div>
             </div>
@@ -394,11 +399,13 @@ export default function AttendanceDashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-gray-100">
-                      <th className="text-left pb-3 font-semibold text-gray-700 text-xs">Date</th>
-                      <th className="text-left pb-3 font-semibold text-gray-700 text-xs">Arrival</th>
-                      <th className="text-left pb-3 font-semibold text-gray-700 text-xs">Departure</th>
-                      <th className="text-left pb-3 font-semibold text-gray-700 text-xs">Effective time</th>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <th className="text-left px-6 py-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">Date</th>
+                      <th className="text-left px-6 py-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">Check In</th>
+                      <th className="text-left px-6 py-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">Check Out</th>
+                      <th className="text-left px-6 py-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">Working Hours</th>
+                      <th className="text-left px-6 py-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">Day Type</th>
+                      <th className="text-left px-6 py-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -414,34 +421,26 @@ export default function AttendanceDashboard() {
                             item.year === selectedYear
                           )
                           .map((item, index) => (
-                    <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 text-gray-900">{item.date}</td>
-                      <td className="py-3 text-gray-900">{item.arrival}</td>
-                      <td className="py-3 text-gray-600">{item.departure}</td>
-                      <td className="py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1">
-                            <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full ${
-                                  item.progress >= 80
-                                    ? "bg-emerald-600"
-                                    : item.progress >= 50
-                                    ? "bg-amber-500"
-                                    : "bg-orange-500"
-                                }`}
-                                style={{ width: `${item.progress}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                          <span className="text-xs text-gray-600 whitespace-nowrap">{item.hours}</span>
-                        </div>
+                    <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition">
+                      <td className="px-6 py-4 text-gray-900">{item.date}</td>
+                      <td className="px-6 py-4 text-gray-900">{item.checkIn}</td>
+                      <td className="px-6 py-4 text-gray-600">{item.checkOut}</td>
+                      <td className="px-6 py-4 text-gray-900">{item.hours}</td>
+                      <td className="px-6 py-4">
+                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                          {item.dayType}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="px-3 py-1 bg-teal-50 text-teal-700 rounded text-xs font-medium border border-teal-200">
+                          {item.status}
+                        </span>
                       </td>
                     </tr>
                           ))
                       ) : (
                         <tr>
-                          <td colSpan="4" className="py-8 px-4 text-center">
+                          <td colSpan="6" className="py-8 px-4 text-center">
                             <p className="text-gray-600 text-sm">No attendance records found for the selected filters</p>
                           </td>
                         </tr>

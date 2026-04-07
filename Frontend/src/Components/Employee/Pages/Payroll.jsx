@@ -45,7 +45,7 @@ const PayrollPage = () => {
 
   return (
     <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100  py-8 px-4">
-      <div className="max-w-5xl ml-8 mr-8">
+      <div className="w-full px-4">
 
         {/* Header Section */}
         <div className="mb-8">
