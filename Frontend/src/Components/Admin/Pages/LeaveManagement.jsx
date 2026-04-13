@@ -1,140 +1,222 @@
 import React, { useState } from 'react';
-import { Calendar, Search, CheckCircle, Clock, XCircle, Filter, Download } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 export default function LeaveManagement() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filterStatus, setFilterStatus] = useState('ALL');
+  const [selectedStatusId, setSelectedStatusId] = useState(null);
+  const [leaveRequests, setLeaveRequests] = useState([
+    { 
+      id: 1, 
+      name: 'John Doe', 
+      type: 'Casual', 
+      from: '2026-04-02', 
+      to: '2026-04-03', 
+      reason: 'just a casual leave',
+      status: 'APPROVED'
+    },
+    { 
+      id: 2, 
+      name: 'Sarah Johnson', 
+      type: 'Sick Leave', 
+      from: '2026-04-05', 
+      to: '2026-04-07', 
+      reason: 'Medical appointment',
+      status: 'PENDING'
+    },
+    { 
+      id: 3, 
+      name: 'Michael Brown', 
+      type: 'Vacation', 
+      from: '2026-04-10', 
+      to: '2026-04-15', 
+      reason: 'Family vacation',
+      status: 'APPROVED'
+    },
+    { 
+      id: 4, 
+      name: 'Emily Davis', 
+      type: 'Personal', 
+      from: '2026-04-08', 
+      to: '2026-04-08', 
+      reason: 'Personal work',
+      status: 'REJECTED'
+    },
+  ]);
 
-  const leaveRequests = [
-    { id: 1, name: 'Cody Fisher', type: 'Sick Leave', from: '2025-03-28', to: '2025-03-29', days: 2, status: 'Pending', reason: 'Medical check-up' },
-    { id: 2, name: 'Wade Wilson', type: 'Vacation', from: '2025-04-01', to: '2025-04-05', days: 5, status: 'Approved', reason: 'Holiday vacation' },
-    { id: 3, name: 'Albert Flores', type: 'Casual Leave', from: '2025-03-30', to: '2025-03-30', days: 1, status: 'Pending', reason: 'Personal work' },
-    { id: 4, name: 'Bruce Wayne', type: 'Sick Leave', from: '2025-03-25', to: '2025-03-25', days: 1, status: 'Rejected', reason: 'Health issue' },
-    { id: 5, name: 'Diana Prince', type: 'Maternity Leave', from: '2025-04-15', to: '2025-06-15', days: 60, status: 'Approved', reason: 'Maternity' },
-  ];
-
-  const getStatusColor = (status) => {
-    const colors = {
-      'Pending': 'bg-yellow-100 text-yellow-800',
-      'Approved': 'bg-green-100 text-green-800',
-      'Rejected': 'bg-red-100 text-red-800',
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const month = date.toLocaleString('en-US', { month: 'short' });
+    const day = date.getDate();
+    return `${month} ${day}`;
   };
 
+  const getStatusBadge = (status) => {
+    const styles = {
+      'APPROVED': 'bg-teal-100 text-teal-700 text-xs font-semibold px-2.5 py-1 rounded',
+      'PENDING': 'bg-amber-100 text-amber-700 text-xs font-semibold px-2.5 py-1 rounded',
+      'REJECTED': 'bg-red-100 text-red-700 text-xs font-semibold px-2.5 py-1 rounded',
+    };
+    return styles[status] || styles['PENDING'];
+  };
+
+  const handleStatusChange = (id, newStatus) => {
+    setLeaveRequests(leaveRequests.map(leave => 
+      leave.id === id ? { ...leave, status: newStatus } : leave
+    ));
+    setSelectedStatusId(null);
+  };
+
+  const filteredRequests = leaveRequests.filter(leave => {
+    const matchesSearch = leave.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      leave.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      leave.reason.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesStatus = filterStatus === 'ALL' || leave.status === filterStatus;
+    
+    return matchesSearch && matchesStatus;
+  });
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Leave Management</h1>
-          <p className="text-gray-600 dark:text-gray-400">Review and manage employee leave requests</p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-7 py-6">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Leave Management</h1>
+        <p className="text-gray-600 mt-2">Manage leave applications</p>
+      </div>
+
+      {/* Status Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+        {/* Total Leaves */}
+        <div className="border border-gray-200 rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow p-6">
+          <p className="text-gray-600 text-xs font-semibold uppercase mb-2">Total Leaves</p>
+          <h3 className="text-3xl font-bold text-gray-900">{leaveRequests.length}</h3>
         </div>
 
-        {/* Top Bar */}
-        <div className="mb-6 flex flex-wrap gap-4 items-center">
-          <div className="relative flex-1 min-w-64">
-            <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search employee..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white"
-            />
-          </div>
-          
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white"
-          >
-            <option value="">All Status</option>
-            <option value="Pending">Pending</option>
-            <option value="Approved">Approved</option>
-            <option value="Rejected">Rejected</option>
-          </select>
-
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-            <Download className="h-4 w-4" />
-            Export
-          </button>
+        {/* Pending */}
+        <div className="border border-gray-200 rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow p-6">
+          <p className="text-gray-600 text-xs font-semibold uppercase mb-2">Pending</p>
+          <h3 className="text-3xl font-bold text-gray-900">{leaveRequests.filter(l => l.status === 'PENDING').length}</h3>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total Requests</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">12</p>
-              </div>
-              <Calendar className="h-8 w-8 text-blue-500" />
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Pending</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">3</p>
-              </div>
-              <Clock className="h-8 w-8 text-yellow-500" />
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Approved</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">8</p>
-              </div>
-              <CheckCircle className="h-8 w-8 text-green-500" />
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Rejected</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">1</p>
-              </div>
-              <XCircle className="h-8 w-8 text-red-500" />
-            </div>
-          </div>
+        {/* Approved */}
+        <div className="border border-gray-200 rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow p-6">
+          <p className="text-gray-600 text-xs font-semibold uppercase mb-2">Approved</p>
+          <h3 className="text-3xl font-bold text-gray-900">{leaveRequests.filter(l => l.status === 'APPROVED').length}</h3>
         </div>
 
-        {/* Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
-                <tr>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Employee</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Type</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">From Date</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">To Date</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Days</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {leaveRequests.map((request) => (
-                  <tr key={request.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-white font-medium">{request.name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{request.type}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{request.from}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{request.to}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{request.days}</td>
-                    <td className="px-6 py-4 text-sm">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(request.status)}`}>
-                        {request.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        {/* Rejected */}
+        <div className="border border-gray-200 rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow p-6">
+          <p className="text-gray-600 text-xs font-semibold uppercase mb-2">Rejected</p>
+          <h3 className="text-3xl font-bold text-gray-900">{leaveRequests.filter(l => l.status === 'REJECTED').length}</h3>
         </div>
       </div>
+
+      {/* Search + Filter */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-8">
+        <div className="flex gap-4">
+          <div className="flex items-center border border-gray-300 rounded-lg px-4 flex-1 h-11 hover:border-indigo-400 hover:bg-gray-50 transition">
+            <Search size={18} className="text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search leaves..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="ml-3 outline-none w-full text-sm bg-transparent"
+            />
+          </div>
+
+          <select 
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="border border-gray-300 rounded-lg px-4 py-2.5 w-44 text-sm font-medium text-gray-700 bg-white hover:border-indigo-400 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+          >
+            <option value="ALL">All Status</option>
+            <option value="PENDING">Pending</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <table className="w-full">
+          {/* Table Header */}
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Employee</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Type</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Dates</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Reason</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Status</th>
+            </tr>
+          </thead>
+
+          {/* Table Body */}
+          <tbody className="divide-y divide-gray-200">
+            {filteredRequests.map((leave) => (
+              <tr key={leave.id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-6 py-4 text-sm text-gray-900 font-medium">{leave.name}</td>
+                <td className="px-6 py-4">
+                  <span className="text-xs text-gray-700 font-semibold bg-gray-100 px-2.5 py-1.5 rounded">
+                    {leave.type}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-700">
+                  {formatDate(leave.from)} - {formatDate(leave.to)}, {new Date(leave.to).getFullYear()}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-700">{leave.reason}</td>
+                <td className="px-6 py-4 relative">
+                  <button 
+                    onClick={() => setSelectedStatusId(selectedStatusId === leave.id ? null : leave.id)}
+                    className={getStatusBadge(leave.status) + ' cursor-pointer hover:opacity-80'}
+                  >
+                    {leave.status}
+                  </button>
+                  
+                  {/* Status Dropdown */}
+                  {selectedStatusId === leave.id && (
+                    <div className="absolute top-full left-6 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                      <button
+                        onClick={() => {
+                          handleStatusChange(leave.id, 'PENDING');
+                        }}
+                        className="block w-full text-left px-4 py-2 text-sm text-amber-700 hover:bg-amber-50 transition"
+                      >
+                        PENDING
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleStatusChange(leave.id, 'APPROVED');
+                        }}
+                        className="block w-full text-left px-4 py-2 text-sm text-teal-700 hover:bg-teal-50 border-t border-gray-200 transition"
+                      >
+                        APPROVED
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleStatusChange(leave.id, 'REJECTED');
+                        }}
+                        className="block w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 border-t border-gray-200 transition"
+                      >
+                        REJECTED
+                      </button>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Empty State */}
+      {filteredRequests.length === 0 && (
+        <div className="text-center py-12 text-gray-500">
+          <p>No leave requests found</p>
+        </div>
+      )}
     </div>
   );
 }

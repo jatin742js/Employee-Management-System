@@ -30,26 +30,19 @@ const recentLeaveRequests = [
   { id: 4, employee: 'David Lee', type: 'Sick Leave', days: 1, status: 'rejected', date: '2025-03-26' },
 ];
 
-const recentEmployees = [
-  { id: 1, name: 'Alice Johnson', department: 'Engineering', position: 'Frontend Dev', joinDate: '2025-03-01' },
-  { id: 2, name: 'Bob Smith', department: 'Sales', position: 'Account Executive', joinDate: '2025-03-05' },
-  { id: 3, name: 'Carol Davis', department: 'HR', position: 'HR Generalist', joinDate: '2025-03-10' },
-  { id: 4, name: 'David Brown', department: 'Marketing', position: 'Marketing Specialist', joinDate: '2025-03-15' },
-];
-
-const attendanceData = [
-  { day: 'Mon', present: 85, total: 124 },
-  { day: 'Tue', present: 92, total: 124 },
-  { day: 'Wed', present: 88, total: 124 },
-  { day: 'Thu', present: 95, total: 124 },
-  { day: 'Fri', present: 90, total: 124 },
+const sentNotifications = [
+  { id: 1, employee: 'Alice Johnson', message: 'Leave Request Approved', type: 'approval', time: '2 hours ago' },
+  { id: 2, employee: 'Bob Smith', message: 'Salary Slip Ready', type: 'salary', time: '4 hours ago' },
+  { id: 3, employee: 'Carol Davis', message: 'Performance Review Scheduled', type: 'review', time: '1 day ago' },
+  { id: 4, employee: 'David Brown', message: 'Team Meeting Reminder', type: 'meeting', time: '1 day ago' },
+  { id: 5, employee: 'Emma Wilson', message: 'Document Submission Required', type: 'document', time: '2 days ago' },
 ];
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [leaveRequests, setLeaveRequests] = useState(recentLeaveRequests);
-  const [employees, setEmployees] = useState(recentEmployees);
+  const [notifications, setNotifications] = useState(sentNotifications);
 
   useEffect(() => {
     // Simulate data loading
@@ -91,32 +84,34 @@ const AdminDashboard = () => {
     navigate('/admin/leave-management');
   };
 
-  const handleViewAllEmployees = () => {
-    navigate('/admin/employees');
+  const getNotificationIcon = (type) => {
+    const iconConfig = {
+      approval: { color: 'text-green-600 dark:text-green-400', label: 'Approval' },
+      salary: { color: 'text-blue-600 dark:text-blue-400', label: 'Salary' },
+      review: { color: 'text-purple-600 dark:text-purple-400', label: 'Review' },
+      meeting: { color: 'text-orange-600 dark:text-orange-400', label: 'Meeting' },
+      document: { color: 'text-red-600 dark:text-red-400', label: 'Document' },
+    };
+    const config = iconConfig[type] || iconConfig.approval;
+    return config;
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-teal-600 text-xl">Loading dashboard...</div>
-      </div>
-    );
-  }
+  
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header with admin info */}
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+            <h1 className="text-3xl font-bold text-gray-900">
               Welcome back, {adminInfo.name}
             </h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-1">
+            <p className="text-gray-600 mt-2">
               {adminInfo.organization} · {adminInfo.role}
             </p>
           </div>
-          <div className="flex gap-3">
+          {/* <div className="flex gap-3">
             <button className="px-4 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition flex items-center gap-2">
               <Download className="h-4 w-4" />
               Export Report
@@ -124,167 +119,135 @@ const AdminDashboard = () => {
             <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition shadow-sm">
               + Add Employee
             </button>
-          </div>
+          </div> */}
         </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition">
-            <div className="flex items-center justify-between">
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition">
+            <div className="flex items-start justify-between">
               <div>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">Total Employees</p>
-                <p className="text-2xl font-bold text-gray-800 dark:text-white mt-1">{stats.totalEmployees}</p>
+                <p className="text-gray-600 text-sm font-medium">Total Employees</p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.totalEmployees}</p>
               </div>
-              <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl">
-                <Users className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+              <Users className="h-8 w-8 text-gray-400" />
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">Departments</p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">10</p>
+              </div>
+              <div className="text-indigo-500">
+                <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
               </div>
             </div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition">
-            <div className="flex items-center justify-between">
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition">
+            <div className="flex items-start justify-between">
               <div>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">Present Today</p>
-                <p className="text-2xl font-bold text-gray-800 dark:text-white mt-1">{stats.presentToday}</p>
-                <p className="text-xs text-green-600 mt-1">+5 from yesterday</p>
+                <p className="text-gray-600 text-sm font-medium">Today's Attendance</p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.presentToday}</p>
               </div>
-              <div className="p-3 bg-green-50 dark:bg-green-900/30 rounded-xl">
-                <UserCheck className="h-6 w-6 text-green-600 dark:text-green-400" />
-              </div>
+              <svg className="h-8 w-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
             </div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition">
-            <div className="flex items-center justify-between">
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition">
+            <div className="flex items-start justify-between">
               <div>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">On Leave</p>
-                <p className="text-2xl font-bold text-gray-800 dark:text-white mt-1">{stats.onLeave}</p>
+                <p className="text-gray-600 text-sm font-medium">Pending Leaves</p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.pendingRequests}</p>
               </div>
-              <div className="p-3 bg-orange-50 dark:bg-orange-900/30 rounded-xl">
-                <UserX className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-              </div>
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">Pending Requests</p>
-                <p className="text-2xl font-bold text-gray-800 dark:text-white mt-1">{stats.pendingRequests}</p>
-              </div>
-              <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-xl">
-                <Clock className="h-6 w-6 text-red-600 dark:text-red-400" />
-              </div>
+              <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
             </div>
           </div>
         </div>
 
         {/* Two-column layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Attendance Chart */}
-          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Attendance Overview</h2>
-              <select className="text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1 bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                <option>This Week</option>
-                <option>Last Week</option>
-                <option>This Month</option>
-              </select>
-            </div>
-            <div className="space-y-4">
-              {attendanceData.map((day) => (
-                <div key={day.day}>
-                  <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
-                    <span>{day.day}</span>
-                    <span>{day.present} / {day.total} present</span>
-                  </div>
-                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                    <div
-                      className="bg-indigo-500 h-2 rounded-full"
-                      style={{ width: `${(day.present / day.total) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* Recent Leave Requests */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Recent Leave Requests</h2>
-            <div className="space-y-4">
+          <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Recent Leave Requests</h2>
+              <button onClick={handleViewAllRequests} className="text-indigo-600 text-sm font-medium hover:underline">View All</button>
+            </div>
+            <div className="divide-y divide-gray-200">
               {leaveRequests.map((req) => (
-                <div key={req.id} className="flex items-start justify-between pb-3 border-b border-gray-100 dark:border-gray-700 last:border-0">
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-800 dark:text-white">{req.employee}</p>
-                    <p className="text-sm text-gray-500">{req.type} · {req.days} day(s)</p>
-                    <p className="text-xs text-gray-400 mt-1">{req.date}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {getStatusBadge(req.status)}
-                    {req.status === 'pending' && (
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => handleApproveLeave(req.id)}
-                          className="p-1 text-green-600 hover:bg-green-50 rounded"
-                        >
-                          ✓
-                        </button>
-                        <button
-                          onClick={() => handleRejectLeave(req.id)}
-                          className="p-1 text-red-600 hover:bg-red-50 rounded"
-                        >
-                          ✗
-                        </button>
-                      </div>
-                    )}
+                <div key={req.id} className="px-6 py-4 hover:bg-gray-50 transition">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900">{req.employee}</p>
+                      <p className="text-sm text-gray-600 mt-1">{req.type}</p>
+                      <p className="text-xs text-gray-600 mt-1">{req.days} day(s) • {req.date}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {getStatusBadge(req.status)}
+                      {req.status === 'pending' && (
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => handleApproveLeave(req.id)}
+                            className="p-2 text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition"
+                            title="Approve"
+                          >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleRejectLeave(req.id)}
+                            className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition"
+                            title="Reject"
+                          >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
-            <button onClick={handleViewAllRequests} className="mt-4 text-indigo-600 text-sm font-medium hover:underline w-full text-center">
-              View all requests →
-            </button>
           </div>
-        </div>
 
-        {/* Recent Employees Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Recently Added Employees</h2>
-            <button onClick={handleViewAllEmployees} className="text-indigo-600 text-sm font-medium hover:underline">View All</button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-700/50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Join Date</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                {employees.map((emp) => (
-                  <tr key={emp.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 font-semibold text-sm">
-                          {emp.name.charAt(0)}
-                        </div>
-                        <span className="ml-3 font-medium text-gray-800 dark:text-white">{emp.name}</span>
+          {/* Sent Notifications */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Sent Notifications</h2>
+             
+            </div>
+            <div className="divide-y divide-gray-200">
+              {notifications.map((notif) => {
+                const iconConfig = getNotificationIcon(notif.type);
+                return (
+                  <div key={notif.id} className="px-6 py-4 hover:bg-gray-50 transition border-b border-gray-200 last:border-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">{notif.employee}</p>
+                        <p className="text-sm text-gray-600 mt-1">{notif.message}</p>
+                        <p className="text-xs text-gray-600 mt-2">{notif.time}</p>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">{emp.department}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">{emp.position}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">{emp.joinDate}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <button className="text-gray-400 hover:text-indigo-600 transition">
-                        <Eye className="h-5 w-5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-medium text-gray-700 bg-gray-100 whitespace-nowrap flex-shrink-0 ${iconConfig.color}`}>
+                        {iconConfig.label}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700">
+              <button className="w-full text-indigo-600 text-sm font-medium hover:underline">
+                View all notifications →
+              </button>
+            </div> */}
           </div>
         </div>
 

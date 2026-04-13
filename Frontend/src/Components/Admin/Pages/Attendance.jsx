@@ -21,7 +21,7 @@ const adminInfo = {
 };
 
 // Mock attendance data
-const mockAttendance = [
+const initialAttendance = [
   {
     id: 1,
     name: 'Alice Johnson',
@@ -91,6 +91,8 @@ const AttendancePage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [attendance, setAttendance] = useState(initialAttendance);
+  const [selectedStatusId, setSelectedStatusId] = useState(null);
 
   const formatDate = (date) => {
     return date.toLocaleDateString('en-US', {
@@ -108,7 +110,7 @@ const AttendancePage = () => {
   };
 
   // Filter employees
-  const filteredEmployees = mockAttendance.filter(emp => {
+  const filteredEmployees = attendance.filter(emp => {
     const matchesSearch = emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       emp.department.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDepartment = departmentFilter === 'all' || emp.department === departmentFilter;
@@ -116,10 +118,19 @@ const AttendancePage = () => {
     return matchesSearch && matchesDepartment && matchesStatus;
   });
 
+  const handleStatusChange = (id, newStatus) => {
+    setAttendance(attendance.map(emp => 
+      emp.id === id ? { ...emp, status: newStatus, late: newStatus === 'present' && emp.late } : emp
+    ));
+    setSelectedStatusId(null);
+  };
+
   const getStatusIcon = (status, late) => {
     if (status === 'present') {
       return late ? <Clock className="h-4 w-4 text-orange-500" /> : <CheckCircle className="h-4 w-4 text-green-500" />;
     }
+    if (status === 'late') return <Clock className="h-4 w-4 text-orange-500" />;
+    if (status === 'absent') return <AlertCircle className="h-4 w-4 text-red-500" />;
     if (status === 'on-leave') return <Calendar className="h-4 w-4 text-blue-500" />;
     return null;
   };
@@ -130,22 +141,56 @@ const AttendancePage = () => {
         ? <span className="px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-700">Late</span>
         : <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">Present</span>;
     }
+    if (status === 'late') return <span className="px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-700">Late</span>;
+    if (status === 'absent') return <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">Absent</span>;
     if (status === 'on-leave') return <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">On Leave</span>;
     return null;
   };
 
+  const calculateTotalTime = (checkIn, checkOut) => {
+    if (!checkIn || !checkOut) return '—';
+    
+    try {
+      // Parse times like "09:05 AM" to get hours and minutes
+      const parseTime = (timeStr) => {
+        const [time, period] = timeStr.split(' ');
+        let [hours, minutes] = time.split(':').map(Number);
+        
+        if (period === 'PM' && hours !== 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+        
+        return hours * 60 + minutes; // Convert to minutes
+      };
+      
+      const checkInMinutes = parseTime(checkIn);
+      const checkOutMinutes = parseTime(checkOut);
+      
+      let diffMinutes = checkOutMinutes - checkInMinutes;
+      
+      // Handle day boundary (if checkout is next day)
+      if (diffMinutes < 0) {
+        diffMinutes += 24 * 60;
+      }
+      
+      const hours = Math.floor(diffMinutes / 60);
+      const mins = diffMinutes % 60;
+      
+      return `${hours}h ${mins}m`;
+    } catch (e) {
+      return '—';
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Attendance Management</h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-1">
-              {adminInfo.organization} · {adminInfo.role}
-            </p>
-          </div>
-          <div className="flex gap-3">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-7 py-6">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Attendance Management</h1>
+        <p className="text-gray-600 mt-2">{adminInfo.organization} · {adminInfo.role}</p>
+      </div>
+
+      <div className="max-w-7xl mx-auto">
+          {/* <div className="flex gap-3">
             <button className="px-4 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition flex items-center gap-2">
               <Download className="h-4 w-4" />
               Export
@@ -154,165 +199,180 @@ const AttendancePage = () => {
               <Calendar className="h-4 w-4" />
               Mark Attendance
             </button>
-          </div>
+          </div> */}
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm">Total Employees</p>
-                <p className="text-2xl font-bold">{summaryStats.total}</p>
-              </div>
-              <Users className="h-8 w-8 text-gray-400" />
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-600 text-sm font-medium">Total Employees</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{summaryStats.total}</p>
             </div>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm">Present</p>
-                <p className="text-2xl font-bold">{summaryStats.present}</p>
-              </div>
-              <UserCheck className="h-8 w-8 text-green-500" />
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm">Late</p>
-                <p className="text-2xl font-bold ">{summaryStats.late}</p>
-              </div>
-              <Clock className="h-8 w-8 text-orange-500" />
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm">On Leave</p>
-                <p className="text-2xl font-bold">{summaryStats.onLeave}</p>
-              </div>
-              <Calendar className="h-8 w-8 text-blue-500" />
-            </div>
+            <Users className="h-8 w-8 text-gray-400" />
           </div>
         </div>
-
-        {/* Date Navigation & Filters */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => changeDate(-1)}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-              >
-                <ChevronLeft className="h-5 w-5 text-gray-600" />
-              </button>
-              <div className="text-center">
-                <p className="text-lg font-semibold text-gray-800 dark:text-white">{formatDate(selectedDate)}</p>
-              </div>
-              <button
-                onClick={() => changeDate(1)}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-              >
-                <ChevronRight className="h-5 w-5 text-gray-600" />
-              </button>
-              <button
-                onClick={() => setSelectedDate(new Date())}
-                className="px-3 py-1 text-sm bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition"
-              >
-                Today
-              </button>
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-600 text-sm font-medium">Present</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{summaryStats.present}</p>
             </div>
-
-            <div className="flex flex-wrap gap-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search by name or department"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 pr-4 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
-              </div>
-              <select
-                value={departmentFilter}
-                onChange={(e) => setDepartmentFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-sm"
-              >
-                <option value="all">All Departments</option>
-                <option value="Engineering">Engineering</option>
-                <option value="Sales">Sales</option>
-                <option value="HR">HR</option>
-                <option value="Marketing">Marketing</option>
-              </select>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-sm"
-              >
-                <option value="all">All Status</option>
-                <option value="present">Present</option>
-                <option value="on-leave">On Leave</option>
-              </select>
-            </div>
+            <UserCheck className="h-8 w-8 text-green-500" />
           </div>
         </div>
-
-        {/* Attendance Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-700/50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check In</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check Out</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                {filteredEmployees.map((emp) => (
-                  <tr key={emp.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 font-semibold text-sm">
-                          {emp.name.charAt(0)}
-                        </div>
-                        <span className="ml-3 font-medium text-gray-800 dark:text-white">{emp.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">{emp.department}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">{emp.checkIn || '—'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">{emp.checkOut || '—'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        {getStatusIcon(emp.status, emp.late)}
-                        {getStatusBadge(emp.status, emp.late)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <button className="text-gray-400 hover:text-indigo-600 transition">
-                        <AlertCircle className="h-5 w-5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-600 text-sm font-medium">Late</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{summaryStats.late}</p>
+            </div>
+            <Clock className="h-8 w-8 text-orange-500" />
           </div>
-          {filteredEmployees.length === 0 && (
-            <div className="text-center py-8 text-gray-500">No records found.</div>
-          )}
         </div>
-
-        {/* Footer */}
-        <div className="mt-8 text-center text-gray-500 dark:text-gray-400 text-xs">
-          © 2025 Employee Management System · {adminInfo.organization}
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-600 text-sm font-medium">On Leave</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{summaryStats.onLeave}</p>
+            </div>
+            <Calendar className="h-8 w-8 text-blue-500" />
+          </div>
         </div>
       </div>
+
+      {/* Date Navigation & Filters */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-8">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => changeDate(-1)}
+              className="p-2 rounded-lg hover:bg-gray-100 transition"
+            >
+              <ChevronLeft className="h-5 w-5 text-gray-600" />
+            </button>
+            <div className="text-center">
+              <p className="text-lg font-semibold text-gray-900">{formatDate(selectedDate)}</p>
+            </div>
+            <button
+              onClick={() => changeDate(1)}
+              className="p-2 rounded-lg hover:bg-gray-100 transition"
+            >
+              <ChevronRight className="h-5 w-5 text-gray-600" />
+            </button>
+          </div>
+
+          <div className="flex flex-wrap gap-3 flex-1">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by name or department"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm hover:border-indigo-400 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-150"
+              />
+            </div>
+            <select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:border-indigo-400 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+            >
+              <option value="all">All Departments</option>
+              <option value="Engineering">Engineering</option>
+              <option value="Sales">Sales</option>
+              <option value="HR">HR</option>
+              <option value="Marketing">Marketing</option>
+            </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:border-indigo-400 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+            >
+              <option value="all">All Status</option>
+              <option value="present">Present</option>
+              <option value="on-leave">On Leave</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Attendance Table */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Employee</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Department</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Check In</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Check Out</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Status</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Total Time</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {filteredEmployees.map((emp) => (
+                <tr key={emp.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-semibold text-sm">
+                        {emp.name.charAt(0)}
+                      </div>
+                      <span className="ml-3 font-medium text-gray-900">{emp.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-700">{emp.department}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-700">{emp.checkIn || '—'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-700">{emp.checkOut || '—'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap relative">
+                    <button 
+                      onClick={() => setSelectedStatusId(selectedStatusId === emp.id ? null : emp.id)}
+                      className="inline-flex items-center gap-2 cursor-pointer"
+                    >
+                      {getStatusIcon(emp.status, emp.late)}
+                      {getStatusBadge(emp.status, emp.late)}
+                    </button>
+
+                    {/* Status Dropdown */}
+                    {selectedStatusId === emp.id && (
+                      <div className="absolute top-full left-6 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                        <button
+                          onClick={() => handleStatusChange(emp.id, 'present')}
+                          className="block w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-green-50 transition"
+                        >
+                          Present
+                        </button>
+                        <button
+                          onClick={() => handleStatusChange(emp.id, 'late')}
+                          className="block w-full text-left px-4 py-2 text-sm text-orange-700 hover:bg-orange-50 border-t border-gray-200 transition"
+                        >
+                          Late
+                        </button>
+                        <button
+                          onClick={() => handleStatusChange(emp.id, 'absent')}
+                          className="block w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 border-t border-gray-200 transition"
+                        >
+                          Absent
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {calculateTotalTime(emp.checkIn, emp.checkOut)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {filteredEmployees.length === 0 && (
+          <div className="text-center py-8 text-gray-500">No records found.</div>
+        )}
+      </div>
+
+      
     </div>
   );
 };
