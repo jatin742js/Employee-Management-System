@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   User,
   Mail,
@@ -12,6 +12,7 @@ import {
   Shield,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import adminAuthService from '../../../services/adminAuthService';
 
 export default function AdminSettings() {
   const navigate = useNavigate();
@@ -19,15 +20,16 @@ export default function AdminSettings() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
 
   // Profile form state
   const [profile, setProfile] = useState({
-    fullName: 'John Doe',
-    email: 'john.doe@company.com',
-    phone: '+1 (555) 123-4567',
-    organization: 'TechCorp Inc.',
-    position: 'HR Administrator',
+    fullName: '',
+    email: '',
+    phone: '',
+    organization: '',
+    position: '',
   });
 
   // Password form state
@@ -36,6 +38,46 @@ export default function AdminSettings() {
     newPassword: '',
     confirmPassword: '',
   });
+
+  // Load admin profile on mount
+  useEffect(() => {
+    loadAdminProfile();
+  }, []);
+
+  const loadAdminProfile = async () => {
+    try {
+      setIsLoading(true);
+      const response = await adminAuthService.getAdminProfile();
+      // Response already contains .data from the service
+      const profileData = response.data || response;
+      if (profileData) {
+        setProfile({
+          fullName: profileData.name || '',
+          email: profileData.email || '',
+          phone: profileData.phone || '',
+          organization: profileData.department || '',
+          position: profileData.position || 'Administrator',
+        });
+      }
+    } catch (err) {
+      const errorMsg = err.message || 'Failed to load profile';
+      setMessage({ type: 'error', text: errorMsg });
+      console.error('Profile load error:', err);
+      // Load from localStorage as fallback
+      const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
+      if (adminUser.name) {
+        setProfile({
+          fullName: adminUser.name || '',
+          email: adminUser.email || '',
+          phone: adminUser.phone || '',
+          organization: adminUser.department || '',
+          position: adminUser.role || 'Administrator',
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
 
 
@@ -54,12 +96,28 @@ export default function AdminSettings() {
   const handleProfileSave = async (e) => {
     e.preventDefault();
     setSaving(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const response = await adminAuthService.updateAdminProfile({
+        name: profile.fullName,
+        phone: profile.phone,
+        department: profile.organization,
+      });
+      
+      // Update localStorage with new data
+      const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
+      adminUser.name = profile.fullName;
+      adminUser.phone = profile.phone;
+      adminUser.department = profile.organization;
+      localStorage.setItem('adminUser', JSON.stringify(adminUser));
+      
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
-      setSaving(false);
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    }, 1000);
+    } catch (err) {
+      const errorMsg = err.message || err.data?.message || 'Failed to update profile';
+      setMessage({ type: 'error', text: errorMsg });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handlePasswordSave = async (e) => {
@@ -73,13 +131,22 @@ export default function AdminSettings() {
       return;
     }
     setSaving(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const response = await adminAuthService.changeAdminPassword(
+        passwordForm.currentPassword,
+        passwordForm.newPassword,
+        passwordForm.confirmPassword
+      );
+      
       setMessage({ type: 'success', text: 'Password changed successfully!' });
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      setSaving(false);
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    }, 1000);
+    } catch (err) {
+      const errorMsg = err.message || err.data?.message || 'Failed to change password';
+      setMessage({ type: 'error', text: errorMsg });
+    } finally {
+      setSaving(false);
+    }
   };
 
 
@@ -88,12 +155,26 @@ export default function AdminSettings() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8 px-4">
-      <div className="max-w-5xl pl-6">
+      <div className="max-w-4xl mx-auto md:ml-6 md:mr-auto">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
           <p className="text-gray-600 mt-2">Manage your account and preferences</p>
         </div>
+
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+              <p className="mt-4 text-gray-600">Loading your settings...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Content - Only show when loaded */}
+        {!isLoading && (
+        <>
 
         {/* Success/Error Message */}
         {message.text && (
@@ -307,6 +388,8 @@ export default function AdminSettings() {
             </form>
           </div>
         </div>
+        </>
+        )}
       </div>
     </div>
   );

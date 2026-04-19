@@ -16,18 +16,17 @@ import {
   Briefcase,
   UserCircle
 } from 'lucide-react';
+import adminAuthService from '../../../services/adminAuthService';
 
 const AdminSidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   // State for active menu item
   const [activeItem, setActiveItem] = useState('Dashboard');
-  // State for mobile sidebar visibility
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   // State for dark mode
   const [isDarkMode, setIsDarkMode] = useState(false);
-  // State for user dropdown (optional)
-  const [showUserMenu, setShowUserMenu] = useState(false);
+  // State for profile dropdown
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
 
   // Toggle dark mode
   const toggleDarkMode = () => {
@@ -41,13 +40,7 @@ const AdminSidebar = () => {
 
   // Close mobile menu when window resizes to desktop
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 768) {
-        setIsMobileMenuOpen(false);
-      }
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    // Any additional initialization can go here
   }, []);
 
   // Menu items for admin (core items only)
@@ -59,6 +52,15 @@ const AdminSidebar = () => {
     { id: 5, label: 'Payroll', icon: CreditCard, path: '/admin/payroll', badge: false },
   
     { id: 6, label: 'Settings', icon: Settings, path: '/admin/settings', badge: false },
+  ];
+
+  // Mobile bottom nav items
+  const mobileBottomNavItems = [
+    { id: 1, label: 'Dashboard', displayLabel: 'Home', icon: LayoutDashboard, path: '/admin/dashboard' },
+    { id: 2, label: 'Attendance', displayLabel: 'Attendance', icon: CalendarCheck, path: '/admin/attendance' },
+    { id: 3, label: 'Employees', displayLabel: 'Employee', icon: Users, path: '/admin/employees', elevated: true },
+    { id: 4, label: 'Leave Management', displayLabel: 'Leave', icon: CalendarPlus, path: '/admin/leave-management' },
+    { id: 5, label: 'Payroll', displayLabel: 'Salary', icon: CreditCard, path: '/admin/payroll' },
   ];
 
   // Update active item based on current location
@@ -73,17 +75,14 @@ const AdminSidebar = () => {
   // Handle menu click
   const handleMenuItemClick = (path, label) => {
     setActiveItem(label);
-    setIsMobileMenuOpen(false);
     navigate(path);
   };
 
   // Handle logout
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
-      // Clear admin session
-      localStorage.removeItem('adminUser');
-      localStorage.removeItem('adminToken');
-      sessionStorage.removeItem('adminSession');
+      // Clear admin session using auth service
+      adminAuthService.logoutAdmin();
       // Redirect to admin login
       navigate('/admin/login');
     }
@@ -91,105 +90,138 @@ const AdminSidebar = () => {
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <button
-        className="fixed top-4 left-4 z-50 p-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg md:hidden"
-        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-      >
-        {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-      </button>
-
-      {/* Sidebar */}
-      <aside
-        className={`
-          fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-gray-800 shadow-xl transform transition-transform duration-300 ease-in-out
-          md:relative md:translate-x-0
-          ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-        `}
-      >
-        <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="p-5 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center space-x-2">
-              <Briefcase className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
-              <span className="text-xl font-bold text-gray-800 dark:text-white">AdminHub</span>
+      {/* Mobile Top Bar with Profile Dropdown */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between shadow-sm">
+        <div className="flex items-center space-x-2">
+          <Briefcase className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+          <span className="text-lg font-bold text-gray-900 dark:text-white">AdminHub</span>
+        </div>
+        <div className="relative">
+          <button
+            onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-600 hover:text-gray-700 dark:text-gray-400 transition"
+            title="Profile"
+          >
+            <UserCircle size={24} />
+          </button>
+          
+          {/* Mobile Header Profile Dropdown */}
+          {showProfileDropdown && (
+            <div className="absolute top-12 right-0 w-40 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg overflow-hidden z-50">
+              <button
+                onClick={() => {
+                  navigate('/admin/settings');
+                  setShowProfileDropdown(false);
+                }}
+                className="w-full px-4 py-3 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center gap-2 transition"
+              >
+                <UserCircle size={18} />
+                My Profile
+              </button>
+              <div className="border-t border-gray-200 dark:border-gray-600"></div>
+              <button
+                onClick={() => {
+                  setShowProfileDropdown(false);
+                  handleLogout();
+                }}
+                className="w-full px-4 py-3 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 transition"
+              >
+                <LogOut size={18} />
+                Logout
+              </button>
             </div>
-          </div>
+          )}
+        </div>
+      </div>
 
-          {/* Admin Profile Card - Simplified */}
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center space-x-3">
-              <UserCircle className="w-10 h-10 text-indigo-600 dark:text-indigo-400" />
-              <div>
-                <h3 className="font-semibold text-gray-800 dark:text-white">Admin User</h3>
-              </div>
-            </div>
-          </div>
+      {/* Mobile Bottom Navigation Bar */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg">
+        <ul className="flex justify-around items-center h-20 px-2">
+          {mobileBottomNavItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeItem === item.label;
+            return (
+              <li key={item.id} className="flex-1">
+                <button
+                  onClick={() => handleMenuItemClick(item.path, item.label)}
+                  className={`
+                    flex flex-col items-center justify-center w-full px-3 py-2 transition-all duration-200 rounded-lg
+                    ${item.elevated 
+                      ? `h-16 -mt-6 bg-indigo-600 dark:bg-indigo-500 text-white shadow-lg hover:shadow-xl hover:bg-indigo-700 dark:hover:bg-indigo-600`
+                      : `h-20 ${isActive
+                        ? 'text-indigo-600 dark:text-indigo-400'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-400'
+                      }`
+                    }
+                  `}
+                >
+                  <Icon size={item.elevated ? 28 : 24} className="shrink-0" />
+                  <span className={`font-medium mt-1 ${item.elevated ? 'text-xs' : 'text-xs'}`}>{item.displayLabel || item.label}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
 
-          {/* Navigation Menu */}
-          <nav className="flex-1 overflow-y-auto py-4">
-            <ul className="space-y-1 px-3">
-              {menuItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeItem === item.label;
-                return (
-                  <li key={item.id}>
-                    <button
-                      onClick={() => handleMenuItemClick(item.path, item.label)}
-                      className={`
-                        flex items-center w-full px-3 py-2.5 rounded-lg transition-all duration-200
-                        ${isActive
-                          ? 'bg-indigo-50 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300'
-                          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                        }
-                      `}
-                    >
-                      <Icon size={20} className="shrink-0" />
-                      <span className="ml-3 text-sm font-medium">{item.label}</span>
-                      {item.badge && (
-                        <span className="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                          {item.badgeCount}
-                        </span>
-                      )}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-
-          {/* Bottom Section */}
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
-            {/* Dark Mode Toggle */}
-            {/* <button
-              onClick={toggleDarkMode}
-              className="flex items-center w-full px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
-            >
-              {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-              <span className="ml-3 text-sm font-medium">
-                {isDarkMode ? 'Light Mode' : 'Dark Mode'}
-              </span>
-            </button> */}
-
-            {/* Logout Button */}
-            <button
-              onClick={handleLogout}
-              className="flex items-center w-full px-3 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium"
-            >
-              <LogOut size={20} />
-              <span className="ml-3 text-sm font-medium">Logout</span>
-            </button>
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex flex-col h-full w-64 bg-white dark:bg-gray-800 shadow-lg border-r border-gray-200 dark:border-gray-700">
+        {/* Logo */}
+        <div className="p-5 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-800">
+          <div className="flex items-center space-x-2">
+            <Briefcase className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+            <span className="text-xl font-bold text-gray-900 dark:text-white">AdminHub</span>
           </div>
         </div>
-      </aside>
 
-      {/* Overlay for mobile */}
-      {isMobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
+        {/* Admin Profile Card */}
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center space-x-3">
+            <UserCircle className="w-10 h-10 text-indigo-600 dark:text-indigo-400" />
+            <div>
+              <h3 className="font-semibold text-gray-900 dark:text-white text-sm">Admin User</h3>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation Menu */}
+        <nav className="flex-1 overflow-y-auto py-4">
+          <ul className="space-y-1 px-3">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeItem === item.label;
+              return (
+                <li key={item.id}>
+                  <button
+                    onClick={() => handleMenuItemClick(item.path, item.label)}
+                    className={`
+                      flex items-center w-full px-3 py-2.5 rounded-lg transition-all duration-200
+                      ${isActive
+                        ? 'bg-indigo-50 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300'
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-400'
+                      }
+                    `}
+                  >
+                    <Icon size={20} className="shrink-0" />
+                    <span className="ml-3 text-sm font-medium">{item.label}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        {/* Bottom Section */}
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition font-medium"
+          >
+            <LogOut size={18} />
+            <span className="text-sm">Logout</span>
+          </button>
+        </div>
+      </aside>
     </>
   );
 };

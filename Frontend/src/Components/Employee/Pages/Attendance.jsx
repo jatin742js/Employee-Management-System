@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Clock3,
   LogIn,
@@ -7,11 +7,16 @@ import {
   Zap,
   TrendingUp,
 } from "lucide-react";
+import employeeAttendanceService from "../../../services/employeeAttendanceService";
 
 export default function AttendanceDashboard() {
   const [checkInTime, setCheckInTime] = useState(null);
   const [checkOutTime, setCheckOutTime] = useState(null);
   const [lastCheckInDate, setLastCheckInDate] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
   
   // Get current month and year
   const currentDate = new Date();
@@ -23,41 +28,53 @@ export default function AttendanceDashboard() {
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [selectedYear, setSelectedYear] = useState(currentYear);
   
-  const [attendanceHistory, setAttendanceHistory] = useState([
-    {
-      date: "Mar 31, 2026",
-      month: "March",
-      year: "2026",
-      checkIn: "01:30 PM",
-      checkOut: "-",
-      hours: "5h 27m (ongoing)",
-      dayType: "In Progress",
-      status: "Present",
-      progress: 65,
-    },
-    {
-      date: "Mar 30, 2026",
-      month: "March",
-      year: "2026",
-      checkIn: "09:45 AM",
-      checkOut: "06:15 PM",
-      hours: "8h 30m",
-      dayType: "Regular",
-      status: "Present",
-      progress: 100,
-    },
-    {
-      date: "Mar 29, 2026",
-      month: "March",
-      year: "2026",
-      checkIn: "10:15 AM",
-      checkOut: "05:45 PM",
-      hours: "7h 30m",
-      dayType: "Regular",
-      status: "Present",
-      progress: 85,
-    },
-  ]);
+  const [attendanceHistory, setAttendanceHistory] = useState([]);
+
+  useEffect(() => {
+    loadAttendance();
+  }, []);
+
+  const loadAttendance = async () => {
+    try {
+      setIsLoading(true);
+      const response = await employeeAttendanceService.getMyAttendance();
+      const data = response.data || response.attendance || response;
+      
+      if (Array.isArray(data)) {
+        const formattedData = data.map((record) => ({
+          date: new Date(record.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+          month: new Date(record.date).toLocaleDateString('en-US', { month: 'long' }),
+          year: new Date(record.date).getFullYear().toString(),
+          checkIn: record.checkInTime || '-',
+          checkOut: record.checkOutTime || '-',
+          hours: record.totalHours || 'Ongoing',
+          dayType: record.type || 'Regular',
+          status: record.status || 'Present',
+          progress: record.progress || 0,
+        }));
+        setAttendanceHistory(formattedData);
+      }
+      setError('');
+    } catch (err) {
+      console.error('Error loading attendance:', err);
+      setError(err.message || 'Failed to load attendance');
+      setAttendanceHistory([
+        {
+          date: "Mar 31, 2026",
+          month: "March",
+          year: "2026",
+          checkIn: "01:30 PM",
+          checkOut: "-",
+          hours: "5h 27m (ongoing)",
+          dayType: "In Progress",
+          status: "Present",
+          progress: 65,
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const getCurrentTime = () => {
     const now = new Date();
@@ -86,63 +103,90 @@ export default function AttendanceDashboard() {
     };
   };
 
-  const handleCheckIn = () => {
+  const handleCheckIn = async () => {
     // Check if already checked in today
     if (lastCheckInDate === todayDateString) {
       alert("You have already checked in today. You can check in again tomorrow.");
       return;
     }
-    if (!checkInTime) {
-      const time = getCurrentTime();
-      setCheckInTime(time);
-      setLastCheckInDate(todayDateString);
+    
+    try {
+      setIsCheckingIn(true);
+      const response = await employeeAttendanceService.checkIn();
+      const data = response.data || response;
       
-      // Add entry to table immediately
-      const today = new Date();
-      const todayDate = `${months[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`;
-      const todayMonth = months[today.getMonth()];
-      const todayYear = today.getFullYear().toString();
-      
-      const todayEntry = {
-        date: todayDate,
-        month: todayMonth,
-        year: todayYear,
-        checkIn: time,
-        checkOut: "-",
-        hours: "calculating...",
-        dayType: "In Progress",
-        status: "Present",
-        progress: 0
-      };
-      
-      setAttendanceHistory([todayEntry, ...attendanceHistory]);
+      if (data) {
+        const time = getCurrentTime();
+        setCheckInTime(time);
+        setLastCheckInDate(todayDateString);
+        
+        // Add entry to table immediately
+        const today = new Date();
+        const todayDate = `${months[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`;
+        const todayMonth = months[today.getMonth()];
+        const todayYear = today.getFullYear().toString();
+        
+        const todayEntry = {
+          date: todayDate,
+          month: todayMonth,
+          year: todayYear,
+          checkIn: time,
+          checkOut: "-",
+          hours: "calculating...",
+          dayType: "In Progress",
+          status: "Present",
+          progress: 0
+        };
+        
+        setAttendanceHistory([todayEntry, ...attendanceHistory]);
+        alert("Check-in successful!");
+      }
+    } catch (err) {
+      console.error('Error checking in:', err);
+      alert(err.message || 'Failed to check in');
+    } finally {
+      setIsCheckingIn(false);
     }
   };
 
-  const handleCheckOut = () => {
+  const handleCheckOut = async () => {
     if (checkInTime && !checkOutTime) {
-      const time = getCurrentTime();
-      setCheckOutTime(time);
-      
-      // Update the first entry (today's entry) with checkout time
-      const { hours, progress } = calculateHours(checkInTime, time);
-      
-      const updatedHistory = [...attendanceHistory];
-      updatedHistory[0] = {
-        ...updatedHistory[0],
-        checkOut: time,
-        hours: hours,
-        dayType: "Regular",
-        progress: progress
-      };
-      
-      setAttendanceHistory(updatedHistory);
-      
-      // Auto reset after 2 seconds for next day
-      setTimeout(() => {
-        setCheckInTime(null);
-        setCheckOutTime(null);
-      }, 2000);
+      try {
+        setIsCheckingOut(true);
+        const response = await employeeAttendanceService.checkOut();
+        const data = response.data || response;
+        
+        if (data) {
+          const time = getCurrentTime();
+          setCheckOutTime(time);
+          
+          // Update the first entry (today's entry) with checkout time
+          const { hours, progress } = calculateHours(checkInTime, time);
+          
+          const updatedHistory = [...attendanceHistory];
+          updatedHistory[0] = {
+            ...updatedHistory[0],
+            checkOut: time,
+            hours: hours,
+            dayType: "Regular",
+            progress: progress
+          };
+          
+          setAttendanceHistory(updatedHistory);
+          alert("Check-out successful!");
+          
+          // Auto reset after 2 seconds for next day
+          setTimeout(() => {
+            setCheckInTime(null);
+            setCheckOutTime(null);
+          }, 2000);
+        }
+      } catch (err) {
+        console.error('Error checking out:', err);
+        alert(err.message || 'Failed to check out');
+      } finally {
+        setIsCheckingOut(false);
+      }
     }
   };
 
@@ -163,22 +207,21 @@ export default function AttendanceDashboard() {
   const isMarkedPresent = checkInTime !== null;
 
   return (
-    <div className="min-h-screen  bg-linear-to-br from-gray-50 to-gray-100  py-8 px-4">
-      <div className="max-w-6xl ml-8 mr-8 space-y-6">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto space-y-6">
 
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
             Good afternoon, Sourav!
           </h1>
-         
         </div>
 
         {/* Top Section */}
-        <div className="grid lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
 
           {/* Today Card */}
-          <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+          <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-5 shadow-sm col-span-1 sm:col-span-2 lg:col-span-1">
             <div className="flex justify-between items-center mb-6">
               <h2 className="font-semibold text-gray-900 text-base">Today</h2>
               <span className={`text-white text-xs px-2.5 py-1 rounded-full font-medium ${
@@ -302,7 +345,7 @@ export default function AttendanceDashboard() {
           </div>
 
           {/* Attendance Summary */}
-          <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+          <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-5 shadow-sm col-span-1 sm:col-span-2 lg:col-span-1">
             <div className="flex justify-between items-center mb-6">
               <h2 className="font-semibold text-gray-900 text-base">My Attendance</h2>
               <button className="text-blue-600 text-xs hover:text-blue-700 font-medium">View Stats</button>
@@ -329,14 +372,14 @@ export default function AttendanceDashboard() {
         </div>
 
         {/* Bottom Section */}
-        <div className="grid lg:grid-cols-1 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-1 gap-5">
 
           {/* Working History */}
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
             
             {/* Card Header */}
-            <div className="px-6 py-4 border-b border-gray-200 bg-white">
-              <h2 className="text-lg font-semibold text-gray-900">📋 Working History</h2>
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200 bg-white">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900">📋 Working History</h2>
               <p className="text-gray-600 text-xs mt-1">
                 {attendanceHistory.filter(item =>
                   item.month === selectedMonth &&
@@ -346,13 +389,13 @@ export default function AttendanceDashboard() {
             </div>
 
             {/* Filters Section */}
-            <div className="px-6 py-5 border-b border-gray-200 bg-white">
-              <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-200 bg-white">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
                 <span className="w-2 h-2 bg-teal-600 rounded-full"></span>
                 Filter Options
               </h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {/* Month Filter */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -395,9 +438,9 @@ export default function AttendanceDashboard() {
             </div>
 
             {/* Table Section */}
-            <div className="p-6">
+            <div className="p-4 sm:p-6 overflow-x-auto">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full min-w-max text-sm">
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50">
                       <th className="text-left px-6 py-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">Date</th>

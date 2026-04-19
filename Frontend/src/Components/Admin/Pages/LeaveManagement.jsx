@@ -1,50 +1,84 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
+import adminLeaveService from '../../../services/adminLeaveService';
 
 export default function LeaveManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [selectedStatusId, setSelectedStatusId] = useState(null);
-  const [leaveRequests, setLeaveRequests] = useState([
-    { 
-      id: 1, 
-      name: 'John Doe', 
-      type: 'Casual', 
-      from: '2026-04-02', 
-      to: '2026-04-03', 
-      reason: 'just a casual leave',
-      status: 'APPROVED'
-    },
-    { 
-      id: 2, 
-      name: 'Sarah Johnson', 
-      type: 'Sick Leave', 
-      from: '2026-04-05', 
-      to: '2026-04-07', 
-      reason: 'Medical appointment',
-      status: 'PENDING'
-    },
-    { 
-      id: 3, 
-      name: 'Michael Brown', 
-      type: 'Vacation', 
-      from: '2026-04-10', 
-      to: '2026-04-15', 
-      reason: 'Family vacation',
-      status: 'APPROVED'
-    },
-    { 
-      id: 4, 
-      name: 'Emily Davis', 
-      type: 'Personal', 
-      from: '2026-04-08', 
-      to: '2026-04-08', 
-      reason: 'Personal work',
-      status: 'REJECTED'
-    },
-  ]);
+  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [stats, setStats] = useState({
+    total: 0,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+  });
+
+  useEffect(() => {
+    loadLeaveRequests();
+  }, []);
+
+  const loadLeaveRequests = async () => {
+    try {
+      setIsLoading(true);
+      const response = await adminLeaveService.getAllLeaves();
+      
+      if (response && response.leaves) {
+        setLeaveRequests(response.leaves);
+        // Calculate stats
+        const total = response.leaves.length;
+        const pending = response.leaves.filter(l => l.status === 'PENDING').length;
+        const approved = response.leaves.filter(l => l.status === 'APPROVED').length;
+        const rejected = response.leaves.filter(l => l.status === 'REJECTED').length;
+        setStats({ total, pending, approved, rejected });
+      }
+      setError('');
+    } catch (err) {
+      const errorMsg = err.message || 'Failed to load leave requests';
+      setError(errorMsg);
+      console.error('Error loading leaves:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleApprove = async (id) => {
+    try {
+      await adminLeaveService.approveLeave(id);
+      alert('Leave approved successfully!');
+      await loadLeaveRequests();
+    } catch (err) {
+      alert('Failed to approve leave: ' + err.message);
+    }
+  };
+
+  const handleReject = async (id) => {
+    const reason = prompt('Enter rejection reason:');
+    if (!reason) return;
+    
+    try {
+      await adminLeaveService.rejectLeave(id, reason);
+      alert('Leave rejected successfully!');
+      await loadLeaveRequests();
+    } catch (err) {
+      alert('Failed to reject leave: ' + err.message);
+    }
+  };
+
+  const filteredRequests = leaveRequests.filter(leave => {
+    const matchesSearch = leave.employeeName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      leave.leaveType?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      leave.reason?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesStatus = filterStatus === 'ALL' || leave.status === filterStatus;
+    
+    return matchesSearch && matchesStatus;
+  });
 
   const formatDate = (dateString) => {
+    if (!dateString) return '—';
     const date = new Date(dateString);
     const month = date.toLocaleString('en-US', { month: 'short' });
     const day = date.getDate();
@@ -60,29 +94,39 @@ export default function LeaveManagement() {
     return styles[status] || styles['PENDING'];
   };
 
-  const handleStatusChange = (id, newStatus) => {
-    setLeaveRequests(leaveRequests.map(leave => 
-      leave.id === id ? { ...leave, status: newStatus } : leave
-    ));
-    setSelectedStatusId(null);
-  };
-
-  const filteredRequests = leaveRequests.filter(leave => {
-    const matchesSearch = leave.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      leave.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      leave.reason.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = filterStatus === 'ALL' || leave.status === filterStatus;
-    
-    return matchesSearch && matchesStatus;
-  });
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-7 py-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-4 sm:px-6 lg:px-8 py-6">
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+            <p className="mt-4 text-gray-600">Loading leave requests...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && !isLoading && (
+        <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-800 font-medium">Error: {error}</p>
+          <button 
+            onClick={loadLeaveRequests}
+            className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Main Content - Only Show When Loaded */}
+      {!isLoading && (
+      <>
+
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Leave Management</h1>
-        <p className="text-gray-600 mt-2">Manage leave applications</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Leave Management</h1>
+        <p className="text-gray-600 mt-2 text-sm sm:text-base">Manage leave applications</p>
       </div>
 
       {/* Status Cards */}
@@ -90,33 +134,33 @@ export default function LeaveManagement() {
         {/* Total Leaves */}
         <div className="border border-gray-200 rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow p-6">
           <p className="text-gray-600 text-xs font-semibold uppercase mb-2">Total Leaves</p>
-          <h3 className="text-3xl font-bold text-gray-900">{leaveRequests.length}</h3>
+          <h3 className="text-3xl font-bold text-gray-900">{stats.total}</h3>
         </div>
 
         {/* Pending */}
         <div className="border border-gray-200 rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow p-6">
           <p className="text-gray-600 text-xs font-semibold uppercase mb-2">Pending</p>
-          <h3 className="text-3xl font-bold text-gray-900">{leaveRequests.filter(l => l.status === 'PENDING').length}</h3>
+          <h3 className="text-3xl font-bold text-gray-900">{stats.pending}</h3>
         </div>
 
         {/* Approved */}
         <div className="border border-gray-200 rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow p-6">
           <p className="text-gray-600 text-xs font-semibold uppercase mb-2">Approved</p>
-          <h3 className="text-3xl font-bold text-gray-900">{leaveRequests.filter(l => l.status === 'APPROVED').length}</h3>
+          <h3 className="text-3xl font-bold text-gray-900">{stats.approved}</h3>
         </div>
 
         {/* Rejected */}
         <div className="border border-gray-200 rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow p-6">
           <p className="text-gray-600 text-xs font-semibold uppercase mb-2">Rejected</p>
-          <h3 className="text-3xl font-bold text-gray-900">{leaveRequests.filter(l => l.status === 'REJECTED').length}</h3>
+          <h3 className="text-3xl font-bold text-gray-900">{stats.rejected}</h3>
         </div>
       </div>
 
       {/* Search + Filter */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-8">
-        <div className="flex gap-4">
-          <div className="flex items-center border border-gray-300 rounded-lg px-4 flex-1 h-11 hover:border-indigo-400 hover:bg-gray-50 transition">
-            <Search size={18} className="text-gray-400" />
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-8">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+          <div className="flex items-center border border-gray-300 rounded-lg px-4 flex-1 h-11 hover:border-indigo-400 hover:bg-gray-50 transition min-w-0">
+            <Search size={18} className="text-gray-400 flex-shrink-0" />
             <input
               type="text"
               placeholder="Search leaves..."
@@ -129,7 +173,7 @@ export default function LeaveManagement() {
           <select 
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="border border-gray-300 rounded-lg px-4 py-2.5 w-44 text-sm font-medium text-gray-700 bg-white hover:border-indigo-400 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+            className="border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 bg-white hover:border-indigo-400 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition min-w-max"
           >
             <option value="ALL">All Status</option>
             <option value="PENDING">Pending</option>
@@ -140,8 +184,9 @@ export default function LeaveManagement() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        <table className="w-full">
+      <div className="bg-white shadow-sm border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-max">
           {/* Table Header */}
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
@@ -150,72 +195,63 @@ export default function LeaveManagement() {
               <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Dates</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Reason</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Status</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Actions</th>
             </tr>
           </thead>
 
           {/* Table Body */}
           <tbody className="divide-y divide-gray-200">
             {filteredRequests.map((leave) => (
-              <tr key={leave.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 text-sm text-gray-900 font-medium">{leave.name}</td>
+              <tr key={leave._id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-6 py-4 text-sm text-gray-900 font-medium">{leave.employeeName}</td>
                 <td className="px-6 py-4">
                   <span className="text-xs text-gray-700 font-semibold bg-gray-100 px-2.5 py-1.5 rounded">
-                    {leave.type}
+                    {leave.leaveType}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-700">
-                  {formatDate(leave.from)} - {formatDate(leave.to)}, {new Date(leave.to).getFullYear()}
+                  {formatDate(leave.startDate)} - {formatDate(leave.endDate)}, {new Date(leave.endDate).getFullYear()}
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-700">{leave.reason}</td>
-                <td className="px-6 py-4 relative">
-                  <button 
-                    onClick={() => setSelectedStatusId(selectedStatusId === leave.id ? null : leave.id)}
-                    className={getStatusBadge(leave.status) + ' cursor-pointer hover:opacity-80'}
-                  >
+                <td className="px-6 py-4">
+                  <span className={getStatusBadge(leave.status)}>
                     {leave.status}
-                  </button>
-                  
-                  {/* Status Dropdown */}
-                  {selectedStatusId === leave.id && (
-                    <div className="absolute top-full left-6 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                  {/* Action Buttons */}
+                  {leave.status === 'PENDING' && (
+                    <div className="flex gap-2">
                       <button
-                        onClick={() => {
-                          handleStatusChange(leave.id, 'PENDING');
-                        }}
-                        className="block w-full text-left px-4 py-2 text-sm text-amber-700 hover:bg-amber-50 transition"
+                        onClick={() => handleApprove(leave._id)}
+                        className="px-3 py-1.5 text-sm text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition font-medium"
                       >
-                        PENDING
+                        Approve
                       </button>
                       <button
-                        onClick={() => {
-                          handleStatusChange(leave.id, 'APPROVED');
-                        }}
-                        className="block w-full text-left px-4 py-2 text-sm text-teal-700 hover:bg-teal-50 border-t border-gray-200 transition"
+                        onClick={() => handleReject(leave._id)}
+                        className="px-3 py-1.5 text-sm text-white bg-red-600 hover:bg-red-700 rounded-lg transition font-medium"
                       >
-                        APPROVED
-                      </button>
-                      <button
-                        onClick={() => {
-                          handleStatusChange(leave.id, 'REJECTED');
-                        }}
-                        className="block w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 border-t border-gray-200 transition"
-                      >
-                        REJECTED
+                        Reject
                       </button>
                     </div>
+                  )}
+                  {leave.status !== 'PENDING' && (
+                    <span className="text-gray-400 text-sm">—</span>
                   )}
                 </td>
               </tr>
             ))}
           </tbody>
-        </table>
-      </div>
+        </table>        </div>      </div>
 
       {/* Empty State */}
       {filteredRequests.length === 0 && (
-        <div className="text-center py-12 text-gray-500">
-          <p>No leave requests found</p>
+        <div className="bg-white  shadow-sm border border-gray-200 text-center py-12">
+          <p className="text-gray-500 font-medium">No leave requests found</p>
         </div>
+      )}
+      </>
       )}
     </div>
   );

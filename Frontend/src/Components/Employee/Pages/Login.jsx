@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import employeeAuthService from '../../../services/employeeAuthService';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -9,10 +10,21 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+
+  // Load remembered email on mount
+  useEffect(() => {
+    const rememberedEmail = localStorage.getItem('rememberEmployeeEmail');
+    if (rememberedEmail) {
+      setEmail(rememberedEmail);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccessMessage('');
     
     if (!email || !password) {
       setError('Please fill in all fields');
@@ -28,29 +40,34 @@ const Login = () => {
     
     setIsLoading(true);
     
-    // Simulate API call
     try {
-      // Replace with actual authentication logic
-      console.log('Login attempt:', { email, password, rememberMe });
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Make API call to login
+      const response = await employeeAuthService.loginEmployee(email, password);
       
-      // Store user data in localStorage
-      localStorage.setItem('employeeUser', JSON.stringify({ email, rememberMe }));
-      localStorage.setItem('employeeToken', 'demo-token');
+      setSuccessMessage('Login successful! Redirecting...');
       
-      // Redirect to dashboard
-      navigate('/employee/dashboard');
+      // Store remember me preference
+      if (rememberMe) {
+        localStorage.setItem('rememberEmployeeEmail', email);
+      } else {
+        localStorage.removeItem('rememberEmployeeEmail');
+      }
+      
+      // Redirect to dashboard on successful login
+      setTimeout(() => {
+        navigate('/employee/dashboard');
+      }, 1000);
     } catch (err) {
-      setError('Invalid credentials. Please try again.');
+      const errorMessage = err.message || err.data?.message || 'Invalid credentials. Please try again.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-teal-400 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-2xl shadow-2xl transition-all duration-300">
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-6 sm:space-y-8 bg-white rounded-2xl shadow-2xl p-6 sm:p-8 transition-all duration-300">
         {/* Header */}
         <div className="text-center">
           <div className="mx-auto h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center">
@@ -78,6 +95,21 @@ const Login = () => {
                 </div>
                 <div className="ml-3">
                   <p className="text-sm text-red-700">{error}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="rounded-md bg-green-50 p-4 border border-green-200">
+              <div className="flex">
+                <div className="shrink-0">
+                  <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-green-700">{successMessage}</p>
                 </div>
               </div>
             </div>

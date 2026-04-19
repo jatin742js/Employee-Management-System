@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import adminAuthService from '../../../services/adminAuthService';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -9,10 +10,21 @@ const AdminLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+
+  // Load remembered email on mount
+  useEffect(() => {
+    const rememberedEmail = localStorage.getItem('rememberAdminEmail');
+    if (rememberedEmail) {
+      setEmail(rememberedEmail);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccessMessage('');
 
     // Basic validation
     if (!email || !password) {
@@ -28,15 +40,26 @@ const AdminLogin = () => {
 
     setIsLoading(true);
 
-    // Simulate API call – replace with your authentication logic
     try {
-      // Example: await login({ email, password });
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Admin login:', { email, password, rememberMe });
+      // Make API call
+      const response = await adminAuthService.loginAdmin(email, password);
+      
+      setSuccessMessage('Login successful! Redirecting...');
+      
+      // Store remember me preference
+      if (rememberMe) {
+        localStorage.setItem('rememberAdminEmail', email);
+      } else {
+        localStorage.removeItem('rememberAdminEmail');
+      }
+      
       // Redirect to admin dashboard on successful login
-      navigate('/admin/dashboard');
+      setTimeout(() => {
+        navigate('/admin/dashboard');
+      }, 1000);
     } catch (err) {
-      setError('Invalid credentials. Please try again.');
+      const errorMessage = err.message || err.data?.message || 'Invalid credentials. Please try again.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -61,6 +84,12 @@ const AdminLogin = () => {
           {error && (
             <div className="rounded-md bg-red-50 p-3 border border-red-200">
               <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="rounded-md bg-green-50 p-3 border border-green-200">
+              <p className="text-sm text-green-700">{successMessage}</p>
             </div>
           )}
 

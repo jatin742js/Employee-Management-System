@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Calendar,
   Search,
@@ -12,87 +12,64 @@ import {
   UserCheck,
   AlertCircle,
 } from 'lucide-react';
-
-// Mock admin info
-const adminInfo = {
-  name: 'John Doe',
-  organization: 'TechCorp Inc.',
-  role: 'HR Administrator',
-};
-
-// Mock attendance data
-const initialAttendance = [
-  {
-    id: 1,
-    name: 'Alice Johnson',
-    department: 'Engineering',
-    checkIn: '09:05 AM',
-    checkOut: '06:00 PM',
-    status: 'present',
-    late: false,
-  },
-  {
-    id: 2,
-    name: 'Bob Smith',
-    department: 'Sales',
-    checkIn: '09:00 AM',
-    checkOut: '05:30 PM',
-    status: 'present',
-    late: false,
-  },
-  {
-    id: 3,
-    name: 'Carol Davis',
-    department: 'HR',
-    checkIn: '09:15 AM',
-    checkOut: '05:45 PM',
-    status: 'present',
-    late: true,
-  },
-  {
-    id: 4,
-    name: 'David Brown',
-    department: 'Marketing',
-    checkIn: null,
-    checkOut: null,
-    status: 'on-leave',
-    late: false,
-  },
-  {
-    id: 5,
-    name: 'Eva Green',
-    department: 'Engineering',
-    checkIn: '09:30 AM',
-    checkOut: null,
-    status: 'present',
-    late: true,
-  },
-  {
-    id: 6,
-    name: 'Frank Miller',
-    department: 'Sales',
-    checkIn: null,
-    checkOut: null,
-    status: 'on-leave',
-    late: false,
-  },
-];
-
-// Summary stats
-const summaryStats = {
-  total: 124,
-  present: 98,
-  late: 8,
-  onLeave: 6,
-};
+import adminAttendanceService from '../../../services/adminAttendanceService';
 
 const AttendancePage = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [searchTerm, setSearchTerm] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [attendance, setAttendance] = useState(initialAttendance);
+  const [attendance, setAttendance] = useState([]);
   const [selectedStatusId, setSelectedStatusId] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [adminInfo, setAdminInfo] = useState({
+    organization: 'Organization',
+    role: 'Administrator',
+  });
+  const [stats, setStats] = useState({
+    total: 0,
+    present: 0,
+    late: 0,
+    onLeave: 0,
+  });
+
+  useEffect(() => {
+    // Load admin info from localStorage
+    const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
+    if (adminUser.department || adminUser.name) {
+      setAdminInfo({
+        organization: adminUser.department || 'Organization',
+        role: adminUser.role || 'Administrator',
+      });
+    }
+    loadAttendanceData();
+  }, [selectedDate]);
+
+  const loadAttendanceData = async () => {
+    try {
+      setIsLoading(true);
+      const dateString = selectedDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+      const response = await adminAttendanceService.getAttendance({ date: dateString });
+      
+      if (response && response.attendance) {
+        setAttendance(response.attendance);
+        // Calculate stats
+        const total = response.attendance.length;
+        const present = response.attendance.filter(a => a.status === 'present').length;
+        const late = response.attendance.filter(a => a.late).length;
+        const onLeave = response.attendance.filter(a => a.status === 'on-leave').length;
+        setStats({ total, present, late, onLeave });
+      }
+      setError('');
+    } catch (err) {
+      const errorMsg = err.message || 'Failed to load attendance data';
+      setError(errorMsg);
+      console.error('Error loading attendance:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const formatDate = (date) => {
     return date.toLocaleDateString('en-US', {
@@ -182,11 +159,11 @@ const AttendancePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-7 py-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-4 sm:px-6 lg:px-8 py-6">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Attendance Management</h1>
-        <p className="text-gray-600 mt-2">{adminInfo.organization} · {adminInfo.role}</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Attendance Management</h1>
+        <p className="text-gray-600 mt-2 text-sm sm:text-base">{adminInfo.organization} · {adminInfo.role}</p>
       </div>
 
       <div className="max-w-7xl mx-auto">
@@ -202,13 +179,40 @@ const AttendancePage = () => {
           </div> */}
         </div>
 
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+            <p className="mt-4 text-gray-600">Loading attendance data...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && !isLoading && (
+        <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-800 font-medium">Error: {error}</p>
+          <button 
+            onClick={loadAttendanceData}
+            className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Main Content - Only Show When Loaded */}
+      {!isLoading && (
+      <>
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm font-medium">Total Employees</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{summaryStats.total}</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
             </div>
             <Users className="h-8 w-8 text-gray-400" />
           </div>
@@ -217,7 +221,7 @@ const AttendancePage = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm font-medium">Present</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{summaryStats.present}</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.present}</p>
             </div>
             <UserCheck className="h-8 w-8 text-green-500" />
           </div>
@@ -226,7 +230,7 @@ const AttendancePage = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm font-medium">Late</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{summaryStats.late}</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.late}</p>
             </div>
             <Clock className="h-8 w-8 text-orange-500" />
           </div>
@@ -235,7 +239,7 @@ const AttendancePage = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm font-medium">On Leave</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{summaryStats.onLeave}</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.onLeave}</p>
             </div>
             <Calendar className="h-8 w-8 text-blue-500" />
           </div>
@@ -243,17 +247,17 @@ const AttendancePage = () => {
       </div>
 
       {/* Date Navigation & Filters */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-8">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-center gap-2 sm:gap-4">
             <button
               onClick={() => changeDate(-1)}
               className="p-2 rounded-lg hover:bg-gray-100 transition"
             >
               <ChevronLeft className="h-5 w-5 text-gray-600" />
             </button>
-            <div className="text-center">
-              <p className="text-lg font-semibold text-gray-900">{formatDate(selectedDate)}</p>
+            <div className="text-center min-w-max">
+              <p className="text-base sm:text-lg font-semibold text-gray-900 break-words">{formatDate(selectedDate)}</p>
             </div>
             <button
               onClick={() => changeDate(1)}
@@ -263,8 +267,8 @@ const AttendancePage = () => {
             </button>
           </div>
 
-          <div className="flex flex-wrap gap-3 flex-1">
-            <div className="relative flex-1">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            <div className="relative flex-1 min-w-0">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
@@ -301,7 +305,7 @@ const AttendancePage = () => {
       {/* Attendance Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-max">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Employee</th>
@@ -373,6 +377,8 @@ const AttendancePage = () => {
       </div>
 
       
+    </>
+    )}
     </div>
   );
 };

@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Lock, Building2, Briefcase, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import adminAuthService from '../../../services/adminAuthService';
 
 export default function AdminRegister() {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     organization: '',
     position: '',
+    phone: '',
     password: '',
     confirmPassword: '',
     agreeTerms: false,
@@ -41,27 +45,70 @@ export default function AdminRegister() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
+    setError('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match!');
+    setError('');
+    setSuccessMessage('');
+
+    // Validation
+    if (!formData.fullName.trim()) {
+      setError('Full name is required');
       return;
     }
+
+    if (!formData.email.trim()) {
+      setError('Email address is required');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    if (!formData.organization.trim()) {
+      setError('Organization name is required');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
     if (!formData.agreeTerms) {
-      alert('Please agree to the terms and conditions.');
+      setError('Please agree to the Terms and Conditions');
       return;
     }
 
     setIsSubmitting(true);
-    // Simulate API call
-    setTimeout(() => {
-      console.log('Registration data:', formData);
-      alert('Registration successful! Redirecting to login...');
-      navigate('/admin/login');
+
+    try {
+      // Make API call
+      const response = await adminAuthService.registerAdmin(formData);
+      
+      setSuccessMessage('Registration successful! Redirecting to login...');
+      console.log('Admin registration successful:', response);
+
+      // Redirect to login after 1.5 seconds
+      setTimeout(() => {
+        navigate('/admin/login');
+      }, 1500);
+    } catch (err) {
+      const errorMessage = err.message || err.data?.message || 'Registration failed. Please try again.';
+      setError(errorMessage);
+    } finally {
       setIsSubmitting(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -88,6 +135,20 @@ export default function AdminRegister() {
 
           {/* Form Content */}
           <div className="p-8">
+            {/* Error Message */}
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-700 text-sm font-medium">{error}</p>
+              </div>
+            )}
+
+            {/* Success Message */}
+            {successMessage && (
+              <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-green-700 text-sm font-medium">{successMessage}</p>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Essential Info - Two Column Layout */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -134,8 +195,8 @@ export default function AdminRegister() {
                 </div>
               </div>
 
-              {/* Organization & Position - Two Column Layout */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* Organization & Position & Phone - Three Column Layout */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 {/* Organization */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -173,6 +234,23 @@ export default function AdminRegister() {
                       onChange={handleChange}
                       placeholder="HR Manager, IT Admin, etc."
                       className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-150"
+                    />
+                  </div>
+                </div>
+
+                {/* Phone */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone Number
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      placeholder="+1 (555) 123-4567"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-150"
                     />
                   </div>
                 </div>

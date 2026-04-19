@@ -1,20 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Download, Plus, X, Upload, Eye } from 'lucide-react';
+import adminPayrollService from '../../../services/adminPayrollService';
+import adminEmployeeService from '../../../services/adminEmployeeService';
 
 export default function Payroll() {
-  const [payslips, setPayslips] = useState([
-    { id: 1, name: 'John Doe', period: 'March 2026', basicSalary: '$50,000', netSalary: '$59,000' },
-    { id: 2, name: 'Sarah Johnson', period: 'March 2026', basicSalary: '$45,000', netSalary: '$54,000' },
-    { id: 3, name: 'Michael Brown', period: 'March 2026', basicSalary: '$55,000', netSalary: '$62,000' },
-  ]);
-
-  const employees = [
-    { id: 1, name: 'John Doe', position: 'Sales Manager', basicSalary: 50000 },
-    { id: 2, name: 'Sarah Johnson', position: 'HR Manager', basicSalary: 45000 },
-    { id: 3, name: 'Michael Brown', position: 'Developer', basicSalary: 55000 },
-    { id: 4, name: 'Avansh', position: 'Marketing Manager', basicSalary: 48000 },
-  ];
-
+  const [payslips, setPayslips] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [month, setMonth] = useState('1');
@@ -25,59 +16,83 @@ export default function Payroll() {
   const [uploadedDoc, setUploadedDoc] = useState(null);
   const [showPayslipModal, setShowPayslipModal] = useState(false);
   const [selectedPayslip, setSelectedPayslip] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-  const handleDownload = (payslip) => {
-    console.log('Downloaded payslip for', payslip.name);
+  useEffect(() => {
+    loadPayrollData();
+  }, []);
+
+  const loadPayrollData = async () => {
+    try {
+      setIsLoading(true);
+      const [payrollRes, employeeRes] = await Promise.all([
+        adminPayrollService.getAllPayroll(),
+        adminEmployeeService.getAllEmployees(),
+      ]);
+
+      if (payrollRes && payrollRes.payroll) {
+        setPayslips(payrollRes.payroll);
+      }
+      if (employeeRes && employeeRes.employees) {
+        setEmployees(employeeRes.employees);
+      }
+      setError('');
+    } catch (err) {
+      const errorMsg = err.message || 'Failed to load payroll data';
+      setError(errorMsg);
+      console.error('Error loading payroll:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleGeneratePayslip = () => {
-    if (selectedEmployee && basicSalary) {
-      const employee = employees.find(emp => emp.id.toString() === selectedEmployee);
-      const netSalary = parseInt(basicSalary) + parseInt(allowances) - parseInt(deductions);
-      const monthName = monthNames[parseInt(month) - 1];
-      
-      const newPayslip = {
-        id: Date.now(),
-        name: employee.name,
-        period: `${monthName} ${year}`,
-        basicSalary: `$${basicSalary}`,
-        allowances: allowances,
-        deductions: deductions,
-        netSalary: netSalary,
-        uploadedDoc: uploadedDoc,
-        fullDetails: {
-          basicSalary,
-          allowances,
-          deductions,
-          netSalary,
-          monthName,
-          year,
-          position: employee.position,
-        }
-      };
+  const handleDownload = (payslip) => {
+    console.log('Downloaded payslip for', payslip.employeeName || payslip.name);
+  };
 
-      setPayslips([...payslips, newPayslip]);
-      setShowModal(false);
-      
-      // Reset form
-      setSelectedEmployee('');
-      setMonth('1');
-      setYear('2026');
-      setBasicSalary('');
-      setAllowances('0');
-      setDeductions('0');
-      setUploadedDoc(null);
+  const handleGeneratePayslip = async () => {
+    if (selectedEmployee && basicSalary) {
+      try {
+        const employee = employees.find(emp => emp._id === selectedEmployee);
+        const payrollData = {
+          employeeId: selectedEmployee,
+          month: parseInt(month),
+          year: parseInt(year),
+          basicSalary: parseInt(basicSalary),
+          allowances: parseInt(allowances),
+          deductions: parseInt(deductions),
+        };
+
+        const response = await adminPayrollService.createPayroll(payrollData);
+        if (response) {
+          alert('Payslip generated successfully!');
+          setShowModal(false);
+          await loadPayrollData();
+          
+          // Reset form
+          setSelectedEmployee('');
+          setMonth('1');
+          setYear('2026');
+          setBasicSalary('');
+          setAllowances('0');
+          setDeductions('0');
+          setUploadedDoc(null);
+        }
+      } catch (err) {
+        alert('Failed to generate payslip: ' + err.message);
+      }
     }
   };
 
   const handleEmployeeSelect = (e) => {
     const empId = e.target.value;
     setSelectedEmployee(empId);
-    const employee = employees.find(emp => emp.id.toString() === empId);
+    const employee = employees.find(emp => emp._id === empId);
     if (employee) {
-      setBasicSalary(employee.basicSalary);
+      setBasicSalary(employee.basicSalary || '0');
     }
   };
 
@@ -95,23 +110,51 @@ export default function Payroll() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-7 py-6">
       {/* Header */}
-      <div className="flex justify-between items-start mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Payslips</h1>
-          <p className="text-gray-600 mt-2">Generate and manage employee payslips</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Payslips</h1>
+          <p className="text-gray-600 mt-2 text-sm sm:text-base">Generate and manage employee payslips</p>
         </div>
         <button 
           onClick={() => setShowModal(true)}
-          className="inline-flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition shadow-sm"
+          className="w-full sm:w-auto inline-flex items-center justify-center sm:justify-start gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition shadow-sm"
         >
           <Plus size={18} />
           Generate Payslip
         </button>
       </div>
 
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+            <p className="mt-4 text-gray-600">Loading payroll data...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && !isLoading && (
+        <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-800 font-medium">Error: {error}</p>
+          <button 
+            onClick={loadPayrollData}
+            className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Main Content - Only Show When Loaded */}
+      {!isLoading && (
+      <>
+
       {/* Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full">
+      <div className="bg-white shadow-sm border border-gray-100 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-max">
           {/* Table Header */}
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
@@ -125,10 +168,12 @@ export default function Payroll() {
           {/* Table Body */}
           <tbody className="divide-y divide-gray-200">
             {payslips.map((payslip) => (
-              <tr key={payslip.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 text-sm text-gray-900 font-medium">{payslip.name}</td>
-                <td className="px-6 py-4 text-sm text-gray-700">{payslip.period}</td>
-                <td className="px-6 py-4 text-sm text-gray-900 font-medium">{payslip.basicSalary}</td>
+              <tr key={payslip._id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-6 py-4 text-sm text-gray-900 font-medium">{payslip.employeeName || payslip.name}</td>
+                <td className="px-6 py-4 text-sm text-gray-700">
+                  {monthNames[payslip.month - 1]} {payslip.year}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-900 font-medium">₹{payslip.basicSalary?.toLocaleString()}</td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
                     <button 
@@ -154,12 +199,13 @@ export default function Payroll() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Empty State */}
-      {payslips.length === 0 && (
-        <div className="text-center py-12 text-gray-500">
-          <p>No payslips found</p>
+      {payslips.length === 0 && !isLoading && (
+        <div className="bg-white shadow-sm border border-gray-200 text-center py-12">
+          <p className="text-gray-500 font-medium">No payslips found</p>
         </div>
       )}
 
@@ -190,8 +236,8 @@ export default function Payroll() {
                 >
                   <option value="">Select Employee</option>
                   {employees.map(emp => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.name} ({emp.position})
+                    <option key={emp._id} value={emp._id}>
+                      {emp.name} ({emp.position || emp.role})
                     </option>
                   ))}
                 </select>
@@ -381,6 +427,8 @@ export default function Payroll() {
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );

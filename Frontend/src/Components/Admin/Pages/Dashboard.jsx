@@ -8,63 +8,98 @@ import {
   Download,
   Eye,
 } from 'lucide-react';
-
-// Mock data
-const adminInfo = {
-  name: 'John Doe',
-  organization: 'TechCorp Inc.',
-  role: 'HR Administrator',
-};
-
-const stats = {
-  totalEmployees: 124,
-  presentToday: 98,
-  onLeave: 12,
-  pendingRequests: 5,
-};
-
-const recentLeaveRequests = [
-  { id: 1, employee: 'Emily Chen', type: 'Sick Leave', days: 2, status: 'pending', date: '2025-03-28' },
-  { id: 2, employee: 'Michael Brown', type: 'Casual Leave', days: 1, status: 'pending', date: '2025-03-28' },
-  { id: 3, employee: 'Sarah Wilson', type: 'Annual Leave', days: 5, status: 'approved', date: '2025-03-27' },
-  { id: 4, employee: 'David Lee', type: 'Sick Leave', days: 1, status: 'rejected', date: '2025-03-26' },
-];
-
-const sentNotifications = [
-  { id: 1, employee: 'Alice Johnson', message: 'Leave Request Approved', type: 'approval', time: '2 hours ago' },
-  { id: 2, employee: 'Bob Smith', message: 'Salary Slip Ready', type: 'salary', time: '4 hours ago' },
-  { id: 3, employee: 'Carol Davis', message: 'Performance Review Scheduled', type: 'review', time: '1 day ago' },
-  { id: 4, employee: 'David Brown', message: 'Team Meeting Reminder', type: 'meeting', time: '1 day ago' },
-  { id: 5, employee: 'Emma Wilson', message: 'Document Submission Required', type: 'document', time: '2 days ago' },
-];
+import adminDashboardService from '../../../services/adminDashboardService';
+import adminLeaveService from '../../../services/adminLeaveService';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
-  const [leaveRequests, setLeaveRequests] = useState(recentLeaveRequests);
-  const [notifications, setNotifications] = useState(sentNotifications);
+  const [adminInfo, setAdminInfo] = useState({
+    name: 'Admin',
+    organization: 'Loading...',
+    role: 'Administrator',
+  });
+  const [stats, setStats] = useState({
+    totalEmployees: 0,
+    presentToday: 0,
+    onLeave: 0,
+    pendingRequests: 0,
+  });
+  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    // Simulate data loading
-    const timer = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(timer);
+    loadDashboardData();
   }, []);
 
-  const handleApproveLeave = (id) => {
-    setLeaveRequests(prev =>
-      prev.map(req =>
-        req.id === id ? { ...req, status: 'approved' } : req
-      )
-    );
-    // API call would go here
+  const loadDashboardData = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Get admin info from localStorage
+      const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
+      if (adminUser.name) {
+        setAdminInfo({
+          name: adminUser.name || 'Admin',
+          organization: adminUser.organization || 'Organization',
+          role: adminUser.role || 'Administrator',
+        });
+      }
+
+      // Fetch dashboard stats
+      const statsResponse = await adminDashboardService.getDashboardStats();
+      if (statsResponse.data) {
+        setStats({
+          totalEmployees: statsResponse.data.totalEmployees || 0,
+          presentToday: statsResponse.data.presentToday || 0,
+          onLeave: statsResponse.data.onLeave || 0,
+          pendingRequests: statsResponse.data.pendingLeaves || 0,
+        });
+      }
+
+      // Fetch leave requests with pending status
+      const leavesResponse = await adminLeaveService.getAllLeaves({ status: 'pending' });
+      if (leavesResponse.data && leavesResponse.data.leaves) {
+        setLeaveRequests(leavesResponse.data.leaves.slice(0, 4));
+      }
+    } catch (err) {
+      const errorMsg = err.message || err.data?.message || 'Failed to load dashboard data';
+      setError(errorMsg);
+      console.error('Dashboard error:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleRejectLeave = (id) => {
-    setLeaveRequests(prev =>
-      prev.map(req =>
-        req.id === id ? { ...req, status: 'rejected' } : req
-      )
-    );
+  const handleApproveLeave = async (id) => {
+    try {
+      await adminLeaveService.approveLeave(id);
+      // Update local state
+      setLeaveRequests(prev =>
+        prev.map(req =>
+          req._id === id || req.id === id ? { ...req, status: 'approved' } : req
+        )
+      );
+    } catch (err) {
+      console.error('Error approving leave:', err);
+      alert('Failed to approve leave');
+    }
+  };
+
+  const handleRejectLeave = async (id) => {
+    try {
+      await adminLeaveService.rejectLeave(id, 'Rejected by admin');
+      // Update local state
+      setLeaveRequests(prev =>
+        prev.map(req =>
+          req._id === id || req.id === id ? { ...req, status: 'rejected' } : req
+        )
+      );
+    } catch (err) {
+      console.error('Error rejecting leave:', err);
+      alert('Failed to reject leave');
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -95,8 +130,6 @@ const AdminDashboard = () => {
     const config = iconConfig[type] || iconConfig.approval;
     return config;
   };
-
-  
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -171,7 +204,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Two-column layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
           {/* Recent Leave Requests */}
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
@@ -179,42 +212,48 @@ const AdminDashboard = () => {
               <button onClick={handleViewAllRequests} className="text-indigo-600 text-sm font-medium hover:underline">View All</button>
             </div>
             <div className="divide-y divide-gray-200">
-              {leaveRequests.map((req) => (
-                <div key={req.id} className="px-6 py-4 hover:bg-gray-50 transition">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">{req.employee}</p>
-                      <p className="text-sm text-gray-600 mt-1">{req.type}</p>
-                      <p className="text-xs text-gray-600 mt-1">{req.days} day(s) • {req.date}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {getStatusBadge(req.status)}
-                      {req.status === 'pending' && (
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => handleApproveLeave(req.id)}
-                            className="p-2 text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition"
-                            title="Approve"
-                          >
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => handleRejectLeave(req.id)}
-                            className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition"
-                            title="Reject"
-                          >
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-                      )}
+              {leaveRequests.length > 0 ? (
+                leaveRequests.map((req) => (
+                  <div key={req.id} className="px-6 py-4 hover:bg-gray-50 transition">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">{req.employee}</p>
+                        <p className="text-sm text-gray-600 mt-1">{req.type}</p>
+                        <p className="text-xs text-gray-600 mt-1">{req.days} day(s) • {req.date}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {getStatusBadge(req.status)}
+                        {req.status === 'pending' && (
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => handleApproveLeave(req.id)}
+                              className="p-2 text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition"
+                              title="Approve"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleRejectLeave(req.id)}
+                              className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition"
+                              title="Reject"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
+                ))
+              ) : (
+                <div className="px-6 py-8 text-center">
+                  <p className="text-gray-500 font-medium">No recent leave requests</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
@@ -225,23 +264,29 @@ const AdminDashboard = () => {
              
             </div>
             <div className="divide-y divide-gray-200">
-              {notifications.map((notif) => {
-                const iconConfig = getNotificationIcon(notif.type);
-                return (
-                  <div key={notif.id} className="px-6 py-4 hover:bg-gray-50 transition border-b border-gray-200 last:border-0">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900">{notif.employee}</p>
-                        <p className="text-sm text-gray-600 mt-1">{notif.message}</p>
-                        <p className="text-xs text-gray-600 mt-2">{notif.time}</p>
+              {notifications.length > 0 ? (
+                notifications.map((notif) => {
+                  const iconConfig = getNotificationIcon(notif.type);
+                  return (
+                    <div key={notif.id} className="px-6 py-4 hover:bg-gray-50 transition border-b border-gray-200 last:border-0">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900">{notif.employee}</p>
+                          <p className="text-sm text-gray-600 mt-1">{notif.message}</p>
+                          <p className="text-xs text-gray-600 mt-2">{notif.time}</p>
+                        </div>
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-medium text-gray-700 bg-gray-100 whitespace-nowrap flex-shrink-0 ${iconConfig.color}`}>
+                          {iconConfig.label}
+                        </span>
                       </div>
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-medium text-gray-700 bg-gray-100 whitespace-nowrap flex-shrink-0 ${iconConfig.color}`}>
-                        {iconConfig.label}
-                      </span>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              ) : (
+                <div className="px-6 py-8 text-center">
+                  <p className="text-gray-500 font-medium">No sent notifications</p>
+                </div>
+              )}
             </div>
             {/* <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700">
               <button className="w-full text-indigo-600 text-sm font-medium hover:underline">

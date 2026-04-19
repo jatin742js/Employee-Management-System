@@ -1,35 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Search, Plus, Edit2, Trash2, X, Eye, Bell } from "lucide-react";
-
-const initialEmployees = [
-  {
-    id: 1,
-    name: "Avinash Kr",
-    role: "Marketing Manager",
-    department: "Marketing",
-    initials: "AK",
-    deleted: false,
-  },
-  {
-    id: 2,
-    name: "John Doe",
-    role: "Sr Developer",
-    department: "Engineering",
-    initials: "JD",
-    deleted: false,
-  },
-  {
-    id: 3,
-    name: "Avinash kr",
-    role: "Sr Developer",
-    department: "Engineering",
-    initials: "Ak",
-    deleted: true,
-  },
-];
+import adminEmployeeService from "../../../services/adminEmployeeService";
 
 export default function EmployeePage() {
-  const [employees, setEmployees] = useState(initialEmployees);
+  const [employees, setEmployees] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [modalMode, setModalMode] = useState('add'); // 'add', 'edit', 'view'
   const [photo, setPhoto] = useState(null);
@@ -42,6 +18,7 @@ export default function EmployeePage() {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
+    employeeId: "",
     phoneNumber: "",
     joinDate: "",
     gender: "",
@@ -54,6 +31,68 @@ export default function EmployeePage() {
     workEmail: "",
     systemRole: "Employee",
   });
+  const [showCredentialsModal, setShowCredentialsModal] = useState(false);
+  const [createdEmployeeCredentials, setCreatedEmployeeCredentials] = useState(null);
+
+  useEffect(() => {
+    loadEmployees();
+  }, []);
+
+  const loadEmployees = async () => {
+    try {
+      setIsLoading(true);
+      const response = await adminEmployeeService.getAllEmployees();
+      // Response is already unwrapped (response.data from service)
+      if (response && response.employees) {
+        // Transform API response to match UI structure
+        const transformedEmployees = response.employees.map(emp => ({
+          id: emp._id,
+          name: emp.name,
+          role: emp.position,
+          department: emp.department,
+          initials: emp.name
+            .split(' ')
+            .map(n => n.charAt(0))
+            .join('')
+            .toUpperCase()
+            .slice(0, 2),
+          deleted: emp.isActive === false,
+          email: emp.email,
+          phone: emp.phone,
+          joinDate: emp.joinDate,
+          gender: emp.gender,
+          basicSalary: emp.basicSalary,
+          allowances: emp.allowances,
+          deductions: emp.deductions,
+          employeeId: emp.employeeId,
+        }));
+        setEmployees(transformedEmployees);
+      }
+    } catch (err) {
+      const errorMsg = err.message || err.message || 'Failed to load employees';
+      setError(errorMsg);
+      console.error('Error loading employees:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Generate unique Employee ID - ensure no duplicates
+  const generateUniqueEmployeeId = (existingEmployees) => {
+    let newId;
+    let isUnique = false;
+    
+    // Keep generating until we find a unique ID
+    while (!isUnique) {
+      const randomDigits = Math.floor(Math.random() * 999999).toString().padStart(6, '0');
+      newId = `EMP${randomDigits}`;
+      
+      // Check if this ID already exists
+      isUnique = !existingEmployees.some(emp => emp.employeeId === newId);
+    }
+    
+    return newId;
+  };
 
   const handlePhotoUpload = (e) => {
     const file = e.target.files?.[0];
@@ -84,61 +123,117 @@ export default function EmployeePage() {
     }));
   };
 
-  const handleAddEmployee = () => {
+  // Generate secure random password
+  const generateSecurePassword = () => {
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const numbers = '0123456789';
+    const special = '!@#$%^&*';
+    
+    const allChars = uppercase + lowercase + numbers + special;
+    let password = '';
+    
+    // Ensure at least one of each type
+    password += uppercase[Math.floor(Math.random() * uppercase.length)];
+    password += lowercase[Math.floor(Math.random() * lowercase.length)];
+    password += numbers[Math.floor(Math.random() * numbers.length)];
+    password += special[Math.floor(Math.random() * special.length)];
+    
+    // Fill remaining length with random characters
+    for (let i = password.length; i < 12; i++) {
+      password += allChars[Math.floor(Math.random() * allChars.length)];
+    }
+    
+    // Shuffle the password
+    return password.split('').sort(() => Math.random() - 0.5).join('');
+  };
+
+  const handleAddEmployee = async () => {
     // Validation
     if (!formData.firstName.trim() || !formData.lastName.trim() || !formData.department || !formData.position.trim()) {
       alert('Please fill in all required fields: First Name, Last Name, Department, and Position');
       return;
     }
 
-    if (modalMode === 'add') {
-      // Add new employee
-      const newId = Math.max(...employees.map(e => e.id || 0), 0) + 1;
-      const newEmployee = {
-        id: newId,
-        name: `${formData.firstName} ${formData.lastName}`,
-        role: formData.position,
-        department: formData.department,
-        initials: `${formData.firstName.charAt(0)}${formData.lastName.charAt(0)}`.toUpperCase(),
-        deleted: false,
-      };
-      setEmployees([...employees, newEmployee]);
-      alert('Employee added successfully!');
-    } else if (modalMode === 'edit' && selectedEmployeeId) {
-      // Update existing employee
-      setEmployees(employees.map(emp => 
-        emp.id === selectedEmployeeId
-          ? {
-              ...emp,
-              name: `${formData.firstName} ${formData.lastName}`,
-              role: formData.position,
-              department: formData.department,
-              initials: `${formData.firstName.charAt(0)}${formData.lastName.charAt(0)}`.toUpperCase(),
-            }
-          : emp
-      ));
-      alert('Employee updated successfully!');
+    // Validate email if provided
+    if (formData.workEmail.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.workEmail)) {
+        alert('Please enter a valid email address');
+        return;
+      }
+    } else {
+      alert('Please enter work email address');
+      return;
     }
-    
-    setShowAddModal(false);
-    setModalMode('add');
-    setFormData({
-      firstName: "",
-      lastName: "",
-      phoneNumber: "",
-      joinDate: "",
-      gender: "",
-      bio: "",
-      department: "",
-      position: "",
-      basicSalary: "",
-      allowances: "",
-      deductions: "",
-      workEmail: "",
-      systemRole: "Employee",
-    });
-    setPhoto(null);
-    setSelectedEmployeeId(null);
+
+    try {
+      // Generate secure password for new employees
+      const generatedPassword = modalMode === 'add' ? generateSecurePassword() : undefined;
+
+      const employeeData = {
+        name: `${formData.firstName} ${formData.lastName}`,
+        email: formData.workEmail,
+        phone: formData.phoneNumber,
+        position: formData.position,
+        department: formData.department,
+        joinDate: formData.joinDate,
+        dateOfJoining: formData.joinDate, // Backend expects dateOfJoining
+        gender: formData.gender,
+        basicSalary: formData.basicSalary,
+        allowances: formData.allowances,
+        deductions: formData.deductions,
+        password: generatedPassword,
+        employeeId: modalMode === 'add' ? formData.employeeId : undefined,
+      };
+
+      if (modalMode === 'add') {
+        // Add new employee
+        const response = await adminEmployeeService.createEmployee(employeeData);
+        if (response) {
+          // Show credentials modal
+          setCreatedEmployeeCredentials({
+            email: formData.workEmail,
+            password: generatedPassword,
+            name: employeeData.name,
+            employeeId: employeeData.employeeId,
+          });
+          setShowCredentialsModal(true);
+          
+          await loadEmployees();
+        }
+      } else if (modalMode === 'edit' && selectedEmployeeId) {
+        // Update existing employee (don't send password unless changed)
+        await adminEmployeeService.updateEmployee(selectedEmployeeId, employeeData);
+        alert('Employee updated successfully!');
+        await loadEmployees();
+      }
+      
+      setShowAddModal(false);
+      setModalMode('add');
+      setFormData({
+        firstName: "",
+        lastName: "",
+        employeeId: "",
+        phoneNumber: "",
+        joinDate: "",
+        gender: "",
+        bio: "",
+        department: "",
+        position: "",
+        basicSalary: "",
+        allowances: "",
+        deductions: "",
+        workEmail: "",
+        systemRole: "Employee",
+      });
+      setPhoto(null);
+      setSelectedEmployeeId(null);
+    } catch (err) {
+      const errorMsg = err.message || 'Failed to save employee';
+      alert(`Error: ${errorMsg}`);
+      console.error('Error saving employee:', err);
+    }
   };
 
   const handleEditEmployee = (emp) => {
@@ -148,6 +243,7 @@ export default function EmployeePage() {
     setFormData({
       firstName: firstName || "",
       lastName: lastName || "",
+      employeeId: emp.employeeId || "",
       phoneNumber: "",
       joinDate: "",
       gender: "",
@@ -170,6 +266,7 @@ export default function EmployeePage() {
     setFormData({
       firstName: firstName || "",
       lastName: lastName || "",
+      employeeId: emp.employeeId || "",
       phoneNumber: "",
       joinDate: "",
       gender: "",
@@ -190,11 +287,18 @@ export default function EmployeePage() {
     setShowDeleteConfirm(true);
   };
 
-  const handleConfirmDelete = () => {
-    // Remove the employee from the list
-    setEmployees(employees.filter(emp => emp.id !== employeeToDelete.id));
-    setShowDeleteConfirm(false);
-    setEmployeeToDelete(null);
+  const handleConfirmDelete = async () => {
+    try {
+      await adminEmployeeService.deleteEmployee(employeeToDelete.id);
+      alert('Employee deleted successfully!');
+      await loadEmployees();
+      setShowDeleteConfirm(false);
+      setEmployeeToDelete(null);
+    } catch (err) {
+      const errorMsg = err.message || 'Failed to delete employee';
+      alert(`Error: ${errorMsg}`);
+      console.error('Error deleting employee:', err);
+    }
   };
 
   const handleCancelDelete = () => {
@@ -222,27 +326,62 @@ export default function EmployeePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-7 py-6">
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+            <p className="mt-4 text-gray-600">Loading employees...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && !isLoading && (
+        <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-800 font-medium">Error: {error}</p>
+          <button 
+            onClick={loadEmployees}
+            className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Main Content - Only Show When Loaded */}
+      {!isLoading && (
+      <div>
       
       {/* Header */}
-      <div className="flex justify-between items-start mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Employees</h1>
-          <p className="text-gray-600 mt-2">Manage your team members</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Employees</h1>
+          <p className="text-gray-600 mt-2 text-sm sm:text-base">Manage your team members</p>
         </div>
 
         <button 
-          onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition shadow-sm">
+          onClick={() => {
+            setShowAddModal(true);
+            setModalMode('add');
+            // Generate unique Employee ID - check against existing employees
+            const uniqueId = generateUniqueEmployeeId(employees);
+            setFormData(prev => ({
+              ...prev,
+              employeeId: uniqueId
+            }));
+          }}
+          className="w-full sm:w-auto inline-flex items-center justify-center sm:justify-start gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition shadow-sm">
           <Plus size={18} />
           Add Employee
         </button>
       </div>
 
       {/* Search + Filter */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-8">
-        <div className="flex gap-4">
-          <div className="flex items-center border border-gray-300 rounded-lg px-4 flex-1 h-11 hover:border-indigo-400 hover:bg-gray-50 transition">
-            <Search size={18} className="text-gray-400" />
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-8">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+          <div className="flex items-center border border-gray-300 rounded-lg px-4 flex-1 h-11 hover:border-indigo-400 hover:bg-gray-50 transition min-w-0">
+            <Search size={18} className="text-gray-400 flex-shrink-0" />
             <input
               type="text"
               placeholder="Search employees..."
@@ -250,7 +389,7 @@ export default function EmployeePage() {
             />
           </div>
 
-          <select className="border border-gray-300 rounded-lg px-4 py-2.5 w-44 text-sm font-medium text-gray-700 bg-white hover:border-indigo-400 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
+          <select className="border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 bg-white hover:border-indigo-400 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition min-w-max">
             <option>All Departments</option>
             <option>Marketing</option>
             <option>Engineering</option>
@@ -259,12 +398,17 @@ export default function EmployeePage() {
       </div>
 
       {/* Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-8">
-        {employees.map((emp, index) => (
-          <div
-            key={index}
-            className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow"
-          >
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
+        {employees.filter(emp => !emp.deleted).length === 0 ? (
+          <div className="col-span-full text-center py-12">
+            <p className="text-gray-600 text-lg">No employees found. Start by adding a new employee.</p>
+          </div>
+        ) : (
+          employees.filter(emp => !emp.deleted).map((emp, index) => (
+            <div
+              key={index}
+              className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow"
+            >
             {/* Top Card Section - Very Light Background */}
             <div className="bg-gray-50 px-5 py-6 relative">
               
@@ -319,7 +463,8 @@ export default function EmployeePage() {
               </div>
             </div>
           </div>
-        ))}
+        ))
+        )}
       </div>
 
       {/* Add Employee Modal */}
@@ -327,14 +472,14 @@ export default function EmployeePage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="sticky top-0 bg-gray-50 border-b border-gray-200 px-8 py-6 flex justify-between items-center">
+            <div className="sticky top-0 bg-gray-50 border-b border-gray-200 px-6 py-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">
                   {modalMode === 'add' && 'Add New Employee'}
                   {modalMode === 'edit' && 'Edit Employee'}
                   {modalMode === 'view' && 'View Employee Details'}
                 </h2>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm text-gray-600 mt-1 hidden sm:block">
                   {modalMode === 'add' && 'Create a user account and employee profile'}
                   {modalMode === 'edit' && 'Update employee information'}
                   {modalMode === 'view' && 'Employee information details'}
@@ -347,6 +492,7 @@ export default function EmployeePage() {
                   setFormData({
                     firstName: "",
                     lastName: "",
+                    employeeId: "",
                     phoneNumber: "",
                     joinDate: "",
                     gender: "",
@@ -369,7 +515,7 @@ export default function EmployeePage() {
             </div>
 
             {/* Modal Content */}
-            <div className="px-8 py-6 space-y-8">
+            <div className="px-6 py-6 space-y-6 sm:space-y-8 overflow-y-auto max-h-[calc(90vh-200px)]">
               
               {/* Upload Photo Section */}
               <div className="text-center">
@@ -400,7 +546,7 @@ export default function EmployeePage() {
                 <h3 className="text-base font-semibold text-gray-900 mb-4">Personal Information</h3>
                 <div className="space-y-4">
                   {/* First & Last Name */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
                       <input 
@@ -427,8 +573,24 @@ export default function EmployeePage() {
                     </div>
                   </div>
 
+                  {/* Employee ID - Auto Generated */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Employee ID 
+                      <span className="text-xs text-green-600 ml-1 font-normal">(Auto Generated)</span>
+                    </label>
+                    <input 
+                      type="text"
+                      name="employeeId"
+                      value={formData.employeeId}
+                      disabled={true}
+                      className="w-full px-4 py-2.5 border border-green-300 bg-green-50 rounded-lg text-sm font-mono text-gray-600 cursor-not-allowed disabled:opacity-100"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">🔒 Unique ID generated automatically</p>
+                  </div>
+
                   {/* Phone & Join Date */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
                       <input 
@@ -457,7 +619,7 @@ export default function EmployeePage() {
                   </div>
 
                   {/* Gender */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
                       <select 
@@ -496,7 +658,7 @@ export default function EmployeePage() {
                 <h3 className="text-base font-semibold text-gray-900 mb-4">Employment Details</h3>
                 <div className="space-y-4">
                   {/* Department & Position */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
                       <select 
@@ -528,7 +690,7 @@ export default function EmployeePage() {
                   </div>
 
                   {/* Basic Salary & Allowances */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Basic Salary</label>
                       <input 
@@ -590,7 +752,7 @@ export default function EmployeePage() {
                   </div>
 
                   {/* Password & System Role */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
                       <input 
@@ -619,7 +781,7 @@ export default function EmployeePage() {
               </div>
 
               {/* Action Buttons Footer */}
-              <div className="flex justify-end gap-3 px-8 py-4 border-t border-gray-200 bg-gray-50">
+              <div className="flex flex-col-reverse md:flex-row md:justify-end gap-3 px-4 md:px-8 py-4 border-t border-gray-200 bg-gray-50">
                 <button
                   onClick={() => {
                     setShowAddModal(false);
@@ -627,6 +789,7 @@ export default function EmployeePage() {
                     setFormData({
                       firstName: "",
                       lastName: "",
+                      employeeId: "",
                       phoneNumber: "",
                       joinDate: "",
                       gender: "",
@@ -642,14 +805,14 @@ export default function EmployeePage() {
                     setPhoto(null);
                     setSelectedEmployeeId(null);
                   }}
-                  className="px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 transition rounded-lg"
+                  className="w-full md:w-auto px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 transition rounded-lg"
                 >
                   {modalMode === 'view' ? 'Close' : 'Cancel'}
                 </button>
                 {modalMode !== 'view' && (
                   <button 
                     onClick={handleAddEmployee}
-                    className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition shadow-sm"
+                    className="w-full md:w-auto px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition shadow-sm"
                   >
                     {modalMode === 'add' ? 'Add Employee' : 'Update Employee'}
                   </button>
@@ -743,6 +906,119 @@ export default function EmployeePage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Employee Credentials Modal */}
+      {showCredentialsModal && createdEmployeeCredentials && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+            {/* Modal Header */}
+            <div className="px-6 py-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-green-100">
+              <h2 className="text-lg font-semibold text-gray-900">Employee Created Successfully! ✓</h2>
+              <p className="text-sm text-gray-600 mt-1">Share these credentials with the employee</p>
+            </div>
+
+            {/* Modal Content */}
+            <div className="px-6 py-6 space-y-4">
+              {/* Name */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <label className="text-xs font-medium text-gray-600 uppercase tracking-wide">Employee Name</label>
+                <p className="text-lg font-semibold text-gray-900 mt-1">{createdEmployeeCredentials.name}</p>
+              </div>
+
+              {/* Employee ID */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <label className="text-xs font-medium text-gray-600 uppercase tracking-wide">Employee ID</label>
+                <div className="flex items-center justify-between mt-1">
+                  <p className="text-lg font-mono text-gray-900">{createdEmployeeCredentials.employeeId}</p>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(createdEmployeeCredentials.employeeId);
+                      alert('Employee ID copied!');
+                    }}
+                    className="text-xs px-2 py-1 bg-indigo-100 text-indigo-600 rounded hover:bg-indigo-200 transition"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              {/* Email */}
+              <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                <label className="text-xs font-medium text-blue-600 uppercase tracking-wide">Login Email</label>
+                <div className="flex items-center justify-between mt-1">
+                  <p className="text-lg font-mono text-blue-900 break-all">{createdEmployeeCredentials.email}</p>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(createdEmployeeCredentials.email);
+                      alert('Email copied!');
+                    }}
+                    className="text-xs px-2 py-1 bg-blue-200 text-blue-700 rounded hover:bg-blue-300 transition ml-2 whitespace-nowrap"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              {/* Password */}
+              <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
+                <label className="text-xs font-medium text-amber-700 uppercase tracking-wide">Temporary Password</label>
+                <div className="flex items-center justify-between mt-1">
+                  <p className="text-lg font-mono text-amber-900">{createdEmployeeCredentials.password}</p>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(createdEmployeeCredentials.password);
+                      alert('Password copied!');
+                    }}
+                    className="text-xs px-2 py-1 bg-amber-200 text-amber-700 rounded hover:bg-amber-300 transition ml-2 whitespace-nowrap"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              {/* Important Notice */}
+              <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                <p className="text-sm text-red-800">
+                  <span className="font-semibold">⚠️ Important:</span> Make sure to share these credentials securely with the employee. Ask them to change their password on first login.
+                </p>
+              </div>
+
+              {/* Login URL Info */}
+              <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
+                <p className="text-sm text-indigo-800">
+                  <span className="font-semibold">📍 Login URL:</span> Employee panel login page
+                </p>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  // Copy all credentials as text
+                  const credentialsText = `Employee Name: ${createdEmployeeCredentials.name}\nEmployee ID: ${createdEmployeeCredentials.employeeId}\nEmail: ${createdEmployeeCredentials.email}\nPassword: ${createdEmployeeCredentials.password}`;
+                  navigator.clipboard.writeText(credentialsText);
+                  alert('All credentials copied!');
+                }}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 font-medium transition"
+              >
+                Copy All
+              </button>
+              <button
+                onClick={() => {
+                  setShowCredentialsModal(false);
+                  setCreatedEmployeeCredentials(null);
+                }}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition shadow-sm"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      </div>
       )}
     </div>
   );

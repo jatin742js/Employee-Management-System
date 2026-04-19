@@ -1,23 +1,67 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Thermometer, Umbrella, Leaf, X, Send } from "lucide-react";
+import employeeLeaveService from "../../../services/employeeLeaveService";
 
 export default function LeaveManagement() {
   const [showModal, setShowModal] = useState(false);
-  const [leaveRequests, setLeaveRequests] = useState([
-    {
-      id: 1,
-      type: "CASUAL",
-      dates: "Apr 02 - Apr 03, 2026",
-      reason: "just a casual leave",
-      status: "APPROVED",
-    },
-  ]);
+  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     leaveType: "Sick Leave",
     fromDate: "",
     toDate: "",
     reason: "",
   });
+
+  useEffect(() => {
+    loadLeaves();
+  }, []);
+
+  const loadLeaves = async () => {
+    try {
+      setIsLoading(true);
+      const response = await employeeLeaveService.getMyLeaves();
+      const data = response.data || response.leaves || response;
+      
+      if (Array.isArray(data)) {
+        const formattedLeaves = data.map((leave) => ({
+          id: leave._id || leave.id,
+          type: leave.leaveType?.toUpperCase() || 'LEAVE',
+          dates: `${leave.startDate} - ${leave.endDate}`,
+          reason: leave.reason || '',
+          status: leave.status?.toUpperCase() || 'PENDING',
+        }));
+        setLeaveRequests(formattedLeaves);
+      } else {
+        setLeaveRequests([
+          {
+            id: 1,
+            type: "CASUAL",
+            dates: "Apr 02 - Apr 03, 2026",
+            reason: "just a casual leave",
+            status: "APPROVED",
+          },
+        ]);
+      }
+      setError('');
+    } catch (err) {
+      console.error('Error loading leaves:', err);
+      setError(err.message || 'Failed to load leaves');
+      setLeaveRequests([
+        {
+          id: 1,
+          type: "CASUAL",
+          dates: "Apr 02 - Apr 03, 2026",
+          reason: "just a casual leave",
+          status: "APPROVED",
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -27,7 +71,7 @@ export default function LeaveManagement() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!formData.fromDate || !formData.toDate || !formData.reason) {
@@ -35,28 +79,45 @@ export default function LeaveManagement() {
       return;
     }
 
-    const newLeave = {
-      id: leaveRequests.length + 1,
-      type: formData.leaveType.split(" ")[0].toUpperCase(),
-      dates: `${formData.fromDate} - ${formData.toDate}`,
-      reason: formData.reason,
-      status: "PENDING",
-    };
+    try {
+      setIsSubmitting(true);
+      const response = await employeeLeaveService.requestLeave({
+        leaveType: formData.leaveType.toLowerCase().split(' ')[0],
+        startDate: formData.fromDate,
+        endDate: formData.toDate,
+        reason: formData.reason,
+        numberOfDays: 1, // Calculate properly if needed
+      });
 
-    setLeaveRequests([newLeave, ...leaveRequests]);
-    setShowModal(false);
-    setFormData({
-      leaveType: "Sick Leave",
-      fromDate: "",
-      toDate: "",
-      reason: "",
-    });
+      const newLeave = {
+        id: response.data?._id || response._id || leaveRequests.length + 1,
+        type: formData.leaveType.split(" ")[0].toUpperCase(),
+        dates: `${formData.fromDate} - ${formData.toDate}`,
+        reason: formData.reason,
+        status: "PENDING",
+      };
+
+      setLeaveRequests([newLeave, ...leaveRequests]);
+      setShowModal(false);
+      setFormData({
+        leaveType: "Sick Leave",
+        fromDate: "",
+        toDate: "",
+        reason: "",
+      });
+      alert("Leave request submitted successfully!");
+    } catch (err) {
+      console.error('Error submitting leave:', err);
+      alert(err.message || 'Failed to submit leave request');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="bg-gray-100 min-h-screen px-8 py-8">
       {/* Header */}
-      <div className="flex justify-between items-start mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 leading-none">
             Leave Management
@@ -68,7 +129,7 @@ export default function LeaveManagement() {
 
         <button
           onClick={() => setShowModal(true)}
-          className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-md text-sm font-semibold"
+          className="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg flex items-center justify-center sm:justify-start gap-2 shadow-md text-sm font-semibold"
         >
           <Plus size={18} />
           Apply for Leave
@@ -76,7 +137,7 @@ export default function LeaveManagement() {
       </div>
 
       {/* Leave Cards */}
-      <div className="grid grid-cols-3 gap-6 mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
         {/* Sick Leave */}
         <div className="bg-white border-l-4 border-l-teal-500 rounded-md px-6 py-6 shadow-sm">
           <div className="flex items-center gap-4">
@@ -139,8 +200,8 @@ export default function LeaveManagement() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-md shadow-sm overflow-hidden">
-        <table className="w-full">
+      <div className="bg-white rounded-md shadow-sm overflow-x-auto">
+        <table className="w-full min-w-max">
           <thead className="border-b border-gray-200 bg-gray-50">
             <tr>
               <th className="text-left px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wide">
@@ -192,7 +253,7 @@ export default function LeaveManagement() {
 
       {/* Apply for Leave Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4 py-8">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="flex justify-between items-start p-6 border-b border-gray-200">
