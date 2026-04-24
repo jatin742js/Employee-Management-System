@@ -6,32 +6,47 @@ import {
   Building2,
   Briefcase,
   Save,
+  Lock,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import employeeAuthService from '../../../services/employeeAuthService';
-
-// Mock employee data (would come from context/store)
-const defaultEmployeeData = {
-  fullName: 'Olivia Chen',
-  email: 'olivia.chen@techcorp.com',
-  phone: '+1 (555) 123-4567',
-  employeeId: 'E-10245',
-  department: 'Product Design',
-  organization: 'TechCorp Inc.',
-  position: 'Senior Product Designer',
-};
+import { useSocket } from '../../../context/SocketContext';
 
 export default function EmployeeSettings() {
   const [saving, setSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState({ type: '', text: '' });
-  const [employeeData, setEmployeeData] = useState(defaultEmployeeData);
+  const { socket } = useSocket();
+  const [employeeData, setEmployeeData] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    employeeId: '',
+    department: '',
+    organization: '',
+    position: '',
+  });
+  const [activeTab, setActiveTab] = useState('profile'); // 'profile' or 'password'
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
 
   // Profile form state - only editable fields
   const [profile, setProfile] = useState({
-    fullName: defaultEmployeeData.fullName,
-    email: defaultEmployeeData.email,
-    phone: defaultEmployeeData.phone,
+    fullName: '',
+    email: '',
+    phone: '',
+  });
+
+  // Password form state
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
   });
 
   useEffect(() => {
@@ -46,13 +61,13 @@ export default function EmployeeSettings() {
       
       if (data) {
         const profileData = {
-          fullName: data.name || defaultEmployeeData.fullName,
-          email: data.email || defaultEmployeeData.email,
-          phone: data.phone || defaultEmployeeData.phone,
-          employeeId: data.employeeId || defaultEmployeeData.employeeId,
-          department: data.department || defaultEmployeeData.department,
-          organization: data.organization || defaultEmployeeData.organization,
-          position: data.position || defaultEmployeeData.position,
+          fullName: data.name || '',
+          email: data.email || '',
+          phone: data.phone || '',
+          employeeId: data.employeeId || '',
+          department: data.department || '',
+          organization: data.organization || '',
+          position: data.position || '',
         };
         
         setEmployeeData(profileData);
@@ -71,9 +86,28 @@ export default function EmployeeSettings() {
     }
   };
 
+  // Listen to real-time profile updates via Socket.io
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on('profile:updated', (data) => {
+      console.log('Profile updated:', data);
+      loadProfile(); // Refresh profile data
+    });
+
+    return () => {
+      socket.off('profile:updated');
+    };
+  }, [socket]);
+
   const handleProfileChange = (e) => {
     const { name, value } = e.target;
     setProfile(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordForm(prev => ({ ...prev, [name]: value }));
   };
 
   const handleProfileSave = async (e) => {
@@ -96,8 +130,53 @@ export default function EmployeeSettings() {
     }
   };
 
+  const handlePasswordChange_Save = async (e) => {
+    e.preventDefault();
+    
+    // Validation
+    if (!passwordForm.currentPassword) {
+      setMessage({ type: 'error', text: 'Please enter your current password' });
+      return;
+    }
+    if (!passwordForm.newPassword) {
+      setMessage({ type: 'error', text: 'Please enter a new password' });
+      return;
+    }
+    if (passwordForm.newPassword.length < 6) {
+      setMessage({ type: 'error', text: 'New password must be at least 6 characters' });
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setMessage({ type: 'error', text: 'Passwords do not match' });
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await employeeAuthService.changeEmployeePassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+        confirmPassword: passwordForm.confirmPassword,
+      });
+      
+      setMessage({ type: 'success', text: 'Password changed successfully!' });
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    } catch (err) {
+      console.error('Error changing password:', err);
+      setMessage({ type: 'error', text: err.message || 'Failed to change password' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const renderTabContent = () => {
-    return (
+    if (activeTab === 'profile') {
+      return (
           <form onSubmit={handleProfileSave} className="space-y-6">
             {/* Alert section */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 mb-6">
@@ -246,7 +325,107 @@ export default function EmployeeSettings() {
               </button>
             </div>
           </form>
-    );
+      );
+    } else if (activeTab === 'password') {
+      return (
+        <form onSubmit={handlePasswordChange_Save} className="space-y-6">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 sm:p-4 mb-6">
+            <p className="text-xs sm:text-sm text-amber-700">
+              <span className="font-semibold">Tip:</span> Choose a strong password with a mix of uppercase, lowercase, numbers, and special characters for better security.
+            </p>
+          </div>
+
+          <div className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Current Password *
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type={showPasswords.current ? 'text' : 'password'}
+                  name="currentPassword"
+                  value={passwordForm.currentPassword}
+                  onChange={handlePasswordChange}
+                  placeholder="Enter your current password"
+                  className="w-full pl-9 pr-10 py-2.5 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPasswords.current ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                New Password *
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type={showPasswords.new ? 'text' : 'password'}
+                  name="newPassword"
+                  value={passwordForm.newPassword}
+                  onChange={handlePasswordChange}
+                  placeholder="Enter a new password (min 6 characters)"
+                  className="w-full pl-9 pr-10 py-2.5 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPasswords.new ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Confirm New Password *
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type={showPasswords.confirm ? 'text' : 'password'}
+                  name="confirmPassword"
+                  value={passwordForm.confirmPassword}
+                  onChange={handlePasswordChange}
+                  placeholder="Confirm your new password"
+                  className="w-full pl-9 pr-10 py-2.5 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPasswords.confirm ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-4 border-t border-gray-200">
+            <button
+              type="submit"
+              disabled={saving}
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg transition shadow-md hover:shadow-lg disabled:opacity-70"
+            >
+              {saving ? 'Updating...' : (
+                <>
+                  <Lock className="h-4 w-4" />
+                  Change Password
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      );
+    }
   };
 
   return (
@@ -287,6 +466,30 @@ export default function EmployeeSettings() {
 
         {/* Bento-style card */}
         <div className="bg-white rounded-lg sm:rounded-2xl shadow-md hover:shadow-lg overflow-hidden border border-gray-200 transition-all duration-200">
+          {/* Tabs Header */}
+          <div className="flex border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab('profile')}
+              className={`flex-1 px-4 sm:px-6 py-4 sm:py-5 font-medium text-sm sm:text-base transition-colors border-b-2 ${
+                activeTab === 'profile'
+                  ? 'text-teal-600 border-b-teal-600 bg-teal-50/50'
+                  : 'text-gray-600 border-b-transparent hover:text-gray-900'
+              }`}
+            >
+              Profile Settings
+            </button>
+            <button
+              onClick={() => setActiveTab('password')}
+              className={`flex-1 px-4 sm:px-6 py-4 sm:py-5 font-medium text-sm sm:text-base transition-colors border-b-2 ${
+                activeTab === 'password'
+                  ? 'text-teal-600 border-b-teal-600 bg-teal-50/50'
+                  : 'text-gray-600 border-b-transparent hover:text-gray-900'
+              }`}
+            >
+              Change Password
+            </button>
+          </div>
+
           {/* Content */}
           <div className="p-4 sm:p-6">
             {/* Success/Error Message */}

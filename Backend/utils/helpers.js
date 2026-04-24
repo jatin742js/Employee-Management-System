@@ -26,10 +26,50 @@ const validationRules = {
 // Calculate working hours between two times
 const calculateWorkingHours = (checkInTime, checkOutTime) => {
   try {
-    const checkIn = new Date(`2024-01-01 ${checkInTime}`);
-    const checkOut = new Date(`2024-01-01 ${checkOutTime}`);
-    const diffMs = checkOut - checkIn;
-    const diffHours = diffMs / (1000 * 60 * 60);
+    const parseTimeToMinutes = (timeValue) => {
+      if (!timeValue) return null;
+      const value = String(timeValue).trim();
+
+      // 12-hour format, optional seconds: 09:15 AM / 09:15:22 PM
+      const meridiemMatch = value.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+      if (meridiemMatch) {
+        let hour = Number(meridiemMatch[1]);
+        const minute = Number(meridiemMatch[2]);
+        const meridiem = meridiemMatch[3].toUpperCase();
+
+        if (meridiem === "PM" && hour !== 12) hour += 12;
+        if (meridiem === "AM" && hour === 12) hour = 0;
+
+        return hour * 60 + minute;
+      }
+
+      // 24-hour format, optional seconds: 17:45 / 17:45:10
+      const twentyFourMatch = value.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+      if (twentyFourMatch) {
+        const hour = Number(twentyFourMatch[1]);
+        const minute = Number(twentyFourMatch[2]);
+        if (hour >= 0 && hour < 24 && minute >= 0 && minute < 60) {
+          return hour * 60 + minute;
+        }
+      }
+
+      return null;
+    };
+
+    const checkInMinutes = parseTimeToMinutes(checkInTime);
+    const checkOutMinutes = parseTimeToMinutes(checkOutTime);
+
+    if (checkInMinutes === null || checkOutMinutes === null) {
+      return 0;
+    }
+
+    let diffMinutes = checkOutMinutes - checkInMinutes;
+    if (diffMinutes < 0) {
+      // Guard for day boundary edge-case
+      diffMinutes += 24 * 60;
+    }
+
+    const diffHours = diffMinutes / 60;
     return Math.round(diffHours * 2) / 2; // Round to nearest 0.5
   } catch (error) {
     return 0;

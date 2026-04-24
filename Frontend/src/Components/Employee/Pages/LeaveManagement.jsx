@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Plus, Thermometer, Umbrella, Leaf, X, Send } from "lucide-react";
 import employeeLeaveService from "../../../services/employeeLeaveService";
+import { useSocket } from "../../../context/SocketContext";
 
 export default function LeaveManagement() {
   const [showModal, setShowModal] = useState(false);
@@ -8,12 +9,22 @@ export default function LeaveManagement() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { socket } = useSocket();
   const [formData, setFormData] = useState({
-    leaveType: "Sick Leave",
+    leaveType: "sick",
     fromDate: "",
     toDate: "",
     reason: "",
   });
+
+  const sickLeaveCount = leaveRequests.filter((leave) => leave.type === 'SICK').length;
+  const casualLeaveCount = leaveRequests.filter((leave) => leave.type === 'CASUAL').length;
+  const annualLeaveCount = leaveRequests.filter((leave) => leave.type === 'ANNUAL').length;
+
+  const getLeaveTypeLabel = (leaveType) => {
+    if (leaveType === 'earned') return 'ANNUAL';
+    return (leaveType || 'leave').toUpperCase();
+  };
 
   useEffect(() => {
     loadLeaves();
@@ -23,45 +34,59 @@ export default function LeaveManagement() {
     try {
       setIsLoading(true);
       const response = await employeeLeaveService.getMyLeaves();
-      const data = response.data || response.leaves || response;
+      const data =
+        response?.data?.leaves ||
+        response?.leaves ||
+        (Array.isArray(response?.data) ? response.data : null) ||
+        (Array.isArray(response) ? response : []);
       
       if (Array.isArray(data)) {
         const formattedLeaves = data.map((leave) => ({
           id: leave._id || leave.id,
-          type: leave.leaveType?.toUpperCase() || 'LEAVE',
-          dates: `${leave.startDate} - ${leave.endDate}`,
+          type: getLeaveTypeLabel(leave.leaveType),
+          dates: `${new Date(leave.startDate).toLocaleDateString('en-IN')} - ${new Date(leave.endDate).toLocaleDateString('en-IN')}`,
           reason: leave.reason || '',
           status: leave.status?.toUpperCase() || 'PENDING',
         }));
         setLeaveRequests(formattedLeaves);
       } else {
-        setLeaveRequests([
-          {
-            id: 1,
-            type: "CASUAL",
-            dates: "Apr 02 - Apr 03, 2026",
-            reason: "just a casual leave",
-            status: "APPROVED",
-          },
-        ]);
+        setLeaveRequests([]);
       }
       setError('');
     } catch (err) {
       console.error('Error loading leaves:', err);
       setError(err.message || 'Failed to load leaves');
-      setLeaveRequests([
-        {
-          id: 1,
-          type: "CASUAL",
-          dates: "Apr 02 - Apr 03, 2026",
-          reason: "just a casual leave",
-          status: "APPROVED",
-        },
-      ]);
+      setLeaveRequests([]);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Listen to real-time leave updates via Socket.io
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on('leave:statusUpdated', (data) => {
+      console.log('Leave status updated:', data);
+      loadLeaves(); // Refresh leaves data
+    });
+
+    socket.on('leave:approved', (data) => {
+      console.log('Leave approved:', data);
+      loadLeaves();
+    });
+
+    socket.on('leave:rejected', (data) => {
+      console.log('Leave rejected:', data);
+      loadLeaves();
+    });
+
+    return () => {
+      socket.off('leave:statusUpdated');
+      socket.off('leave:approved');
+      socket.off('leave:rejected');
+    };
+  }, [socket]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -79,19 +104,36 @@ export default function LeaveManagement() {
       return;
     }
 
+    const startDate = new Date(`${formData.fromDate}T00:00:00`);
+    const endDate = new Date(`${formData.toDate}T00:00:00`);
+
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      alert("Please select valid dates");
+      return;
+    }
+
+    if (endDate < startDate) {
+      alert("To date cannot be earlier than from date");
+      return;
+    }
+
+    // Inclusive date range: same day = 1 day
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const numberOfDays = Math.floor((endDate - startDate) / msPerDay) + 1;
+
     try {
       setIsSubmitting(true);
       const response = await employeeLeaveService.requestLeave({
-        leaveType: formData.leaveType.toLowerCase().split(' ')[0],
+        leaveType: formData.leaveType,
         startDate: formData.fromDate,
         endDate: formData.toDate,
         reason: formData.reason,
-        numberOfDays: 1, // Calculate properly if needed
+        numberOfDays,
       });
 
       const newLeave = {
         id: response.data?._id || response._id || leaveRequests.length + 1,
-        type: formData.leaveType.split(" ")[0].toUpperCase(),
+        type: getLeaveTypeLabel(formData.leaveType),
         dates: `${formData.fromDate} - ${formData.toDate}`,
         reason: formData.reason,
         status: "PENDING",
@@ -100,7 +142,7 @@ export default function LeaveManagement() {
       setLeaveRequests([newLeave, ...leaveRequests]);
       setShowModal(false);
       setFormData({
-        leaveType: "Sick Leave",
+        leaveType: "sick",
         fromDate: "",
         toDate: "",
         reason: "",
@@ -150,7 +192,7 @@ export default function LeaveManagement() {
               </p>
               <div className="flex items-baseline gap-1.5 mt-1">
                 <span className="text-4xl font-bold text-gray-900">
-                  0
+                  {sickLeaveCount}
                 </span>
                 <span className="text-xs text-gray-600">taken</span>
               </div>
@@ -170,7 +212,7 @@ export default function LeaveManagement() {
               </p>
               <div className="flex items-baseline gap-1.5 mt-1">
                 <span className="text-4xl font-bold text-gray-900">
-                  1
+                  {casualLeaveCount}
                 </span>
                 <span className="text-xs text-gray-600">taken</span>
               </div>
@@ -190,7 +232,7 @@ export default function LeaveManagement() {
               </p>
               <div className="flex items-baseline gap-1.5 mt-1">
                 <span className="text-4xl font-bold text-gray-900">
-                  0
+                  {annualLeaveCount}
                 </span>
                 <span className="text-xs text-gray-600">taken</span>
               </div>
@@ -220,33 +262,41 @@ export default function LeaveManagement() {
           </thead>
 
           <tbody>
-            {leaveRequests.map((request) => (
-              <tr key={request.id} className="border-b border-gray-100">
-                <td className="px-6 py-4">
-                  <span className="bg-teal-50 text-teal-700 text-xs px-3 py-1 rounded-full font-semibold border border-teal-200">
-                    {request.type}
-                  </span>
-                </td>
+            {leaveRequests.length > 0 ? (
+              leaveRequests.map((request) => (
+                <tr key={request.id} className="border-b border-gray-100">
+                  <td className="px-6 py-4">
+                    <span className="bg-teal-50 text-teal-700 text-xs px-3 py-1 rounded-full font-semibold border border-teal-200">
+                      {request.type}
+                    </span>
+                  </td>
 
-                <td className="px-6 py-4 text-sm text-gray-700">
-                  {request.dates}
-                </td>
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    {request.dates}
+                  </td>
 
-                <td className="px-6 py-4 text-sm text-gray-600">
-                  {request.reason}
-                </td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    {request.reason}
+                  </td>
 
-                <td className="px-6 py-4">
-                  <span className={`text-xs px-3 py-1 rounded-full font-semibold ${
-                    request.status === "APPROVED"
-                      ? "bg-teal-50 text-teal-700 border border-teal-200"
-                      : "bg-amber-50 text-amber-700 border border-amber-200"
-                  }`}>
-                    {request.status}
-                  </span>
+                  <td className="px-6 py-4">
+                    <span className={`text-xs px-3 py-1 rounded-full font-semibold ${
+                      request.status === "APPROVED"
+                        ? "bg-teal-50 text-teal-700 border border-teal-200"
+                        : "bg-amber-50 text-amber-700 border border-amber-200"
+                    }`}>
+                      {request.status}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="4" className="px-6 py-8 text-center text-sm text-gray-500">
+                  No leave records found
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
@@ -283,9 +333,9 @@ export default function LeaveManagement() {
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                 >
-                  <option>Sick Leave</option>
-                  <option>Casual Leave</option>
-                  <option>Annual Leave</option>
+                  <option value="sick">Sick Leave</option>
+                  <option value="casual">Casual Leave</option>
+                  <option value="earned">Annual Leave</option>
                 </select>
               </div>
 

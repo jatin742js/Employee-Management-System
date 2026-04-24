@@ -2,6 +2,7 @@ const EmployeeService = require("../services/employeeService");
 const AttendanceService = require("../services/attendanceService");
 const LeaveService = require("../services/leaveService");
 const PayrollService = require("../services/payrollService");
+const NotificationService = require("../services/notificationService");
 const { successResponse, errorResponse } = require("../utils/responseUtils");
 const { asyncHandler } = require("../utils/errorHandler");
 
@@ -26,12 +27,13 @@ exports.getAllEmployees = asyncHandler(async (req, res) => {
 });
 
 // @route   GET /api/admin/employees/:id
-// @desc    Get single employee
+// @desc    Get single employee (includes password for admin viewing)
 // @access  Private/Admin
 exports.getEmployeeById = asyncHandler(async (req, res) => {
   const employee = await EmployeeService.getEmployeeById(req.params.id);
 
   successResponse(res, 200, "Employee retrieved successfully", employee);
+  // Note: Password is included for admin viewing in details/edit modal
 });
 
 // @route   POST /api/admin/employees
@@ -70,6 +72,15 @@ exports.activateEmployee = asyncHandler(async (req, res) => {
   successResponse(res, 200, "Employee activated successfully", employee);
 });
 
+// @route   DELETE /api/admin/employees/:id
+// @desc    Delete employee permanently
+// @access  Private/Admin
+exports.deleteEmployee = asyncHandler(async (req, res) => {
+  const result = await EmployeeService.deleteEmployee(req.params.id);
+
+  successResponse(res, 200, "Employee deleted successfully", result);
+});
+
 // ============ ATTENDANCE MANAGEMENT ============
 
 // @route   GET /api/admin/attendance
@@ -82,9 +93,13 @@ exports.getAttendance = asyncHandler(async (req, res) => {
   if (employeeId) filters.employee = employeeId;
 
   if (fromDate && toDate) {
+    const startDate = new Date(fromDate);
+    const endDate = new Date(toDate);
+    endDate.setHours(23, 59, 59, 999);
+
     filters.date = {
-      $gte: new Date(fromDate),
-      $lte: new Date(toDate),
+      $gte: startDate,
+      $lte: endDate,
     };
   }
 
@@ -173,7 +188,7 @@ exports.getAllPayroll = asyncHandler(async (req, res) => {
 // @desc    Create payroll record
 // @access  Private/Admin
 exports.createPayroll = asyncHandler(async (req, res) => {
-  const payroll = await PayrollService.createPayroll(req.body);
+  const payroll = await PayrollService.createPayroll(req.body, req.user.id);
 
   successResponse(res, 201, "Payroll created successfully", payroll);
 });
@@ -206,4 +221,64 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
     todayAttendance,
     pendingLeaves,
   });
+});
+
+// ============ NOTIFICATION MANAGEMENT ============
+
+// @route   GET /api/admin/notifications
+// @desc    Get admin notifications
+// @access  Private/Admin
+exports.getNotifications = asyncHandler(async (req, res) => {
+  const { limit = 10, skip = 0, unreadOnly = false } = req.query;
+  let notifications;
+
+  if (unreadOnly === 'true') {
+    notifications = await NotificationService.getUnreadNotifications(req.user.id);
+  } else {
+    notifications = await NotificationService.getAdminNotifications(req.user.id);
+  }
+
+  const paginated = notifications.slice(skip, skip + limit);
+
+  successResponse(res, 200, "Notifications retrieved successfully", {
+    count: paginated.length,
+    total: notifications.length,
+    notifications: paginated,
+  });
+});
+
+// @route   GET /api/admin/notifications/unread/count
+// @desc    Get unread notifications count
+// @access  Private/Admin
+exports.getUnreadCount = asyncHandler(async (req, res) => {
+  const count = await NotificationService.getUnreadCount(req.user.id);
+
+  successResponse(res, 200, "Unread count retrieved successfully", { count });
+});
+
+// @route   PUT /api/admin/notifications/:id/read
+// @desc    Mark notification as read
+// @access  Private/Admin
+exports.markNotificationAsRead = asyncHandler(async (req, res) => {
+  const notification = await NotificationService.markAsRead(req.params.id);
+
+  successResponse(res, 200, "Notification marked as read", notification);
+});
+
+// @route   PUT /api/admin/notifications/read-all
+// @desc    Mark all notifications as read
+// @access  Private/Admin
+exports.markAllNotificationsAsRead = asyncHandler(async (req, res) => {
+  const result = await NotificationService.markAllAsRead(req.user.id);
+
+  successResponse(res, 200, "All notifications marked as read", result);
+});
+
+// @route   DELETE /api/admin/notifications/:id
+// @desc    Delete notification
+// @access  Private/Admin
+exports.deleteNotification = asyncHandler(async (req, res) => {
+  const result = await NotificationService.deleteNotification(req.params.id);
+
+  successResponse(res, 200, "Notification deleted successfully", result);
 });

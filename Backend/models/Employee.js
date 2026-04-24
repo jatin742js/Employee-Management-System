@@ -24,6 +24,11 @@ const employeeSchema = new mongoose.Schema(
       minlength: 6,
       select: false,
     },
+    plainPassword: {
+      type: String,
+      default: "",
+      // This stores the plain text password for admin viewing only
+    },
     phone: {
       type: String,
       default: "",
@@ -50,9 +55,30 @@ const employeeSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    allowances: {
+      type: Number,
+      default: 0,
+    },
+    deductions: {
+      type: Number,
+      default: 0,
+    },
     dateOfJoining: {
       type: Date,
       required: true,
+    },
+    gender: {
+      type: String,
+      enum: ['Male', 'Female', 'Other'],
+      default: '',
+    },
+    bio: {
+      type: String,
+      default: '',
+    },
+    photo: {
+      type: String,
+      default: null,
     },
     manager: {
       type: mongoose.Schema.Types.ObjectId,

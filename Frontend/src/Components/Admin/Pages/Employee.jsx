@@ -29,10 +29,12 @@ export default function EmployeePage() {
     allowances: "",
     deductions: "",
     workEmail: "",
+    password: "",
     systemRole: "Employee",
   });
   const [showCredentialsModal, setShowCredentialsModal] = useState(false);
   const [createdEmployeeCredentials, setCreatedEmployeeCredentials] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     loadEmployees();
@@ -41,37 +43,55 @@ export default function EmployeePage() {
   const loadEmployees = async () => {
     try {
       setIsLoading(true);
+      setError('');
       const response = await adminEmployeeService.getAllEmployees();
-      // Response is already unwrapped (response.data from service)
-      if (response && response.employees) {
+      
+      console.log('Raw Response:', response);
+      
+      // Service returns response.data which has { success, message, data: { count, employees } }
+      // So we need to access response.data.employees
+      const employeesData = response?.data?.employees || response?.employees || [];
+      
+      console.log('Employees Data:', employeesData);
+      console.log('Employees Data Length:', employeesData.length);
+      
+      if (employeesData && employeesData.length > 0) {
         // Transform API response to match UI structure
-        const transformedEmployees = response.employees.map(emp => ({
+        const transformedEmployees = employeesData.map(emp => ({
           id: emp._id,
-          name: emp.name,
-          role: emp.position,
-          department: emp.department,
-          initials: emp.name
+          name: emp.name || 'Unknown',
+          role: emp.position || 'N/A',
+          department: emp.department || 'N/A',
+          photo: emp.photo || null,
+          plainPassword: emp.plainPassword || '', // Store plain password from backend
+          initials: (emp.name || 'U')
             .split(' ')
             .map(n => n.charAt(0))
             .join('')
             .toUpperCase()
             .slice(0, 2),
           deleted: emp.isActive === false,
-          email: emp.email,
-          phone: emp.phone,
-          joinDate: emp.joinDate,
-          gender: emp.gender,
-          basicSalary: emp.basicSalary,
-          allowances: emp.allowances,
-          deductions: emp.deductions,
-          employeeId: emp.employeeId,
+          email: emp.email || '',
+          phone: emp.phone || '',
+          joinDate: emp.dateOfJoining || '', // Backend returns dateOfJoining
+          gender: emp.gender || '',
+          basicSalary: emp.salary || 0, // Backend returns salary
+          allowances: emp.allowances || 0,
+          deductions: emp.deductions || 0,
+          bio: emp.bio || '',
+          employeeId: emp.employeeId || '',
         }));
+        console.log('Transformed Employees:', transformedEmployees);
         setEmployees(transformedEmployees);
+      } else {
+        console.log('No employees found in response');
+        setEmployees([]);
       }
     } catch (err) {
-      const errorMsg = err.message || err.message || 'Failed to load employees';
-      setError(errorMsg);
+      const errorMsg = err?.message || err?.data?.message || 'Failed to load employees';
       console.error('Error loading employees:', err);
+      setError(errorMsg);
+      setEmployees([]);
     } finally {
       setIsLoading(false);
     }
@@ -96,13 +116,40 @@ export default function EmployeePage() {
 
   const handlePhotoUpload = (e) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const maxSize = 800;
+        const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+        const width = Math.round(img.width * scale);
+        const height = Math.round(img.height * scale);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+
+        if (!ctx) {
+          setPhoto(reader.result);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        setPhoto(compressedDataUrl);
+      };
+
+      img.onerror = () => {
         setPhoto(reader.result);
       };
-      reader.readAsDataURL(file);
-    }
+
+      img.src = reader.result;
+    };
+
+    reader.readAsDataURL(file);
   };
 
   const handleInputChange = (e) => {
@@ -121,31 +168,6 @@ export default function EmployeePage() {
       ...prev,
       phoneNumber: phoneValue
     }));
-  };
-
-  // Generate secure random password
-  const generateSecurePassword = () => {
-    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
-    const numbers = '0123456789';
-    const special = '!@#$%^&*';
-    
-    const allChars = uppercase + lowercase + numbers + special;
-    let password = '';
-    
-    // Ensure at least one of each type
-    password += uppercase[Math.floor(Math.random() * uppercase.length)];
-    password += lowercase[Math.floor(Math.random() * lowercase.length)];
-    password += numbers[Math.floor(Math.random() * numbers.length)];
-    password += special[Math.floor(Math.random() * special.length)];
-    
-    // Fill remaining length with random characters
-    for (let i = password.length; i < 12; i++) {
-      password += allChars[Math.floor(Math.random() * allChars.length)];
-    }
-    
-    // Shuffle the password
-    return password.split('').sort(() => Math.random() - 0.5).join('');
   };
 
   const handleAddEmployee = async () => {
@@ -167,23 +189,30 @@ export default function EmployeePage() {
       return;
     }
 
-    try {
-      // Generate secure password for new employees
-      const generatedPassword = modalMode === 'add' ? generateSecurePassword() : undefined;
+    if (modalMode === 'add') {
+      if (!formData.password || formData.password.trim().length < 6) {
+        alert('Please set a password with at least 6 characters');
+        return;
+      }
+    }
 
+    try {
       const employeeData = {
         name: `${formData.firstName} ${formData.lastName}`,
         email: formData.workEmail,
         phone: formData.phoneNumber,
         position: formData.position,
         department: formData.department,
-        joinDate: formData.joinDate,
-        dateOfJoining: formData.joinDate, // Backend expects dateOfJoining
-        gender: formData.gender,
-        basicSalary: formData.basicSalary,
-        allowances: formData.allowances,
-        deductions: formData.deductions,
-        password: generatedPassword,
+        dateOfJoining: formData.joinDate || new Date(),
+        salary: formData.basicSalary || 0,
+        allowances: formData.allowances || 0,
+        deductions: formData.deductions || 0,
+        gender: formData.gender || '',
+        bio: formData.bio || '',
+        photo: photo, // Include photo (base64)
+        password: modalMode === 'add'
+          ? formData.password
+          : (formData.password && formData.password.trim() ? formData.password : undefined),
         employeeId: modalMode === 'add' ? formData.employeeId : undefined,
       };
 
@@ -191,94 +220,152 @@ export default function EmployeePage() {
         // Add new employee
         const response = await adminEmployeeService.createEmployee(employeeData);
         if (response) {
-          // Show credentials modal
-          setCreatedEmployeeCredentials({
-            email: formData.workEmail,
-            password: generatedPassword,
-            name: employeeData.name,
-            employeeId: employeeData.employeeId,
-          });
-          setShowCredentialsModal(true);
+          console.log('Employee created successfully:', response);
           
+          // Close modal first
+          setShowAddModal(false);
+          setModalMode('add');
+          setFormData({
+            firstName: "",
+            lastName: "",
+            employeeId: "",
+            phoneNumber: "",
+            joinDate: "",
+            gender: "",
+            bio: "",
+            department: "",
+            position: "",
+            basicSalary: "",
+            allowances: "",
+            deductions: "",
+            workEmail: "",
+            password: "",
+            systemRole: "Employee",
+          });
+          setPhoto(null);
+          setSelectedEmployeeId(null);
+          
+          // Show success alert
+          alert(`✅ Employee created successfully!\n\nName: ${employeeData.name}\nEmployee ID: ${employeeData.employeeId}\nEmail: ${formData.workEmail}`);
+          
+          // Reload employees list immediately (no timeout)
+          console.log('Reloading employees...');
           await loadEmployees();
+          console.log('Employees reloaded');
         }
       } else if (modalMode === 'edit' && selectedEmployeeId) {
         // Update existing employee (don't send password unless changed)
         await adminEmployeeService.updateEmployee(selectedEmployeeId, employeeData);
         alert('Employee updated successfully!');
         await loadEmployees();
+        setShowAddModal(false);
+        setModalMode('add');
+        setFormData({
+          firstName: "",
+          lastName: "",
+          employeeId: "",
+          phoneNumber: "",
+          joinDate: "",
+          gender: "",
+          bio: "",
+          department: "",
+          position: "",
+          basicSalary: "",
+          allowances: "",
+          deductions: "",
+          workEmail: "",
+          password: "",
+          password: "",
+          systemRole: "Employee",
+        });
+        setPhoto(null);
+        setSelectedEmployeeId(null);
       }
-      
-      setShowAddModal(false);
-      setModalMode('add');
-      setFormData({
-        firstName: "",
-        lastName: "",
-        employeeId: "",
-        phoneNumber: "",
-        joinDate: "",
-        gender: "",
-        bio: "",
-        department: "",
-        position: "",
-        basicSalary: "",
-        allowances: "",
-        deductions: "",
-        workEmail: "",
-        systemRole: "Employee",
-      });
-      setPhoto(null);
-      setSelectedEmployeeId(null);
+      return; // Don't reset form yet for 'add' mode
     } catch (err) {
-      const errorMsg = err.message || 'Failed to save employee';
+      const errorMsg = err?.response?.data?.message || err.message || 'Failed to save employee';
       alert(`Error: ${errorMsg}`);
       console.error('Error saving employee:', err);
     }
   };
 
-  const handleEditEmployee = (emp) => {
+  const handleEditEmployee = async (emp) => {
     setModalMode('edit');
+    setShowPassword(false);
     setSelectedEmployeeId(emp.id);
-    const [firstName, lastName] = emp.name.split(' ');
-    setFormData({
-      firstName: firstName || "",
-      lastName: lastName || "",
-      employeeId: emp.employeeId || "",
-      phoneNumber: "",
-      joinDate: "",
-      gender: "",
-      bio: "",
-      department: emp.department,
-      position: emp.role,
-      basicSalary: "",
-      allowances: "",
-      deductions: "",
-      workEmail: "",
-      systemRole: "Employee",
-    });
+    
+    try {
+      // Fetch full employee data including password
+      const fullEmployee = await adminEmployeeService.getEmployeeById(emp.id);
+      const employeeData = fullEmployee.data || fullEmployee;
+      
+      const nameParts = employeeData.name.split(' ');
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(' ') || "";
+      
+      setFormData({
+        firstName: firstName,
+        lastName: lastName,
+        employeeId: employeeData.employeeId || "",
+        phoneNumber: employeeData.phone || "",
+        joinDate: employeeData.dateOfJoining ? new Date(employeeData.dateOfJoining).toISOString().split('T')[0] : "",
+        gender: employeeData.gender || "",
+        bio: employeeData.bio || "",
+        department: employeeData.department || "",
+        position: employeeData.position || "",
+        basicSalary: employeeData.salary || "",
+        allowances: employeeData.allowances || "",
+        deductions: employeeData.deductions || "",
+        workEmail: employeeData.email || "",
+        password: employeeData.plainPassword || "", // Use plainPassword from backend
+        systemRole: "Employee",
+      });
+      setPhoto(employeeData.photo || null);
+    } catch (err) {
+      console.error('Error fetching employee details:', err);
+      alert('Failed to load employee details');
+    }
+    
     setShowAddModal(true);
   };
 
-  const handleViewDetails = (emp) => {
+  const handleViewDetails = async (emp) => {
     setModalMode('view');
+    setShowPassword(false);
     setSelectedEmployeeId(emp.id);
-    const [firstName, lastName] = emp.name.split(' ');
-    setFormData({
-      firstName: firstName || "",
-      lastName: lastName || "",
-      employeeId: emp.employeeId || "",
-      phoneNumber: "",
-      joinDate: "",
-      gender: "",
-      bio: "",
-      department: emp.department,
-      position: emp.role,
-      basicSalary: "",
-      allowances: "",
-      deductions: "",
-      workEmail: "",
-      systemRole: "Employee",
-    });
+    
+    try {
+      // Fetch full employee data including password
+      const fullEmployee = await adminEmployeeService.getEmployeeById(emp.id);
+      const employeeData = fullEmployee.data || fullEmployee;
+      
+      const nameParts = employeeData.name.split(' ');
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(' ') || "";
+      
+      setFormData({
+        firstName: firstName,
+        lastName: lastName,
+        employeeId: employeeData.employeeId || "",
+        phoneNumber: employeeData.phone || "",
+        joinDate: employeeData.dateOfJoining ? new Date(employeeData.dateOfJoining).toISOString().split('T')[0] : "",
+        gender: employeeData.gender || "",
+        bio: employeeData.bio || "",
+        department: employeeData.department || "",
+        position: employeeData.position || "",
+        basicSalary: employeeData.salary || "",
+        allowances: employeeData.allowances || "",
+        deductions: employeeData.deductions || "",
+        workEmail: employeeData.email || "",
+        password: employeeData.plainPassword || "", // Use plainPassword from backend
+        systemRole: "Employee",
+      });
+      setPhoto(employeeData.photo || null);
+    } catch (err) {
+      console.error('Error fetching employee details:', err);
+      alert('Failed to load employee details');
+    }
+    
     setShowAddModal(true);
   };
 
@@ -325,7 +412,7 @@ export default function EmployeePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-7 py-6">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 px-7 py-6">
       {/* Loading State */}
       {isLoading && (
         <div className="flex items-center justify-center min-h-screen">
@@ -368,7 +455,8 @@ export default function EmployeePage() {
             const uniqueId = generateUniqueEmployeeId(employees);
             setFormData(prev => ({
               ...prev,
-              employeeId: uniqueId
+              employeeId: uniqueId,
+              password: ""
             }));
           }}
           className="w-full sm:w-auto inline-flex items-center justify-center sm:justify-start gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition shadow-sm">
@@ -381,7 +469,7 @@ export default function EmployeePage() {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-8">
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <div className="flex items-center border border-gray-300 rounded-lg px-4 flex-1 h-11 hover:border-indigo-400 hover:bg-gray-50 transition min-w-0">
-            <Search size={18} className="text-gray-400 flex-shrink-0" />
+            <Search size={18} className="text-gray-400 shrink-0" />
             <input
               type="text"
               placeholder="Search employees..."
@@ -433,9 +521,17 @@ export default function EmployeePage() {
 
               {/* Avatar - Centered and Large */}
               <div className="flex justify-center mb-4">
-                <div className="w-28 h-28 rounded-full bg-indigo-100 flex items-center justify-center text-black/40 text-4xl font-bold">
-                  {emp.initials}
-                </div>
+                {emp.photo ? (
+                  <img 
+                    src={emp.photo} 
+                    alt={emp.name}
+                    className="w-28 h-28 rounded-full object-cover border-4 border-white shadow-md"
+                  />
+                ) : (
+                  <div className="w-28 h-28 rounded-full bg-indigo-100 flex items-center justify-center text-black/40 text-4xl font-bold">
+                    {emp.initials}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -489,6 +585,7 @@ export default function EmployeePage() {
                 onClick={() => {
                   setShowAddModal(false);
                   setModalMode('add');
+                  setShowPassword(false);
                   setFormData({
                     firstName: "",
                     lastName: "",
@@ -503,6 +600,7 @@ export default function EmployeePage() {
                     allowances: "",
                     deductions: "",
                     workEmail: "",
+                    password: "",
                     systemRole: "Employee",
                   });
                   setPhoto(null);
@@ -519,7 +617,7 @@ export default function EmployeePage() {
               
               {/* Upload Photo Section */}
               <div className="text-center">
-                <div className="inline-flex">
+                <div className="inline-flex flex-col items-center">
                   <label htmlFor="photo-upload" className={modalMode === 'view' ? 'cursor-default' : 'cursor-pointer'}>
                     <div className={`w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center transition ${modalMode === 'view' ? 'bg-gray-50' : 'hover:bg-gray-200'}`}>
                       {photo ? (
@@ -528,6 +626,9 @@ export default function EmployeePage() {
                         <span className="text-2xl text-gray-400">+</span>
                       )}
                     </div>
+                    <p className="text-xs text-gray-600 mt-2 hover:text-gray-700 transition">
+                      {modalMode === 'view' ? 'Employee Photo' : photo ? 'Change Photo' : 'Upload Photo'}
+                    </p>
                     <input 
                       id="photo-upload"
                       type="file" 
@@ -538,7 +639,6 @@ export default function EmployeePage() {
                     />
                   </label>
                 </div>
-                <p className="text-xs text-gray-600 mt-2">{modalMode === 'view' ? 'Employee Photo' : 'Upload Photo'}</p>
               </div>
 
               {/* Personal Information Section */}
@@ -755,12 +855,29 @@ export default function EmployeePage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
-                      <input 
-                        type="password"
-                        placeholder="Enter password"
-                        disabled={modalMode === 'view'}
-                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed transition"
-                      />
+                      <p className="text-xs text-gray-500 mb-2">
+                        {modalMode === 'view' ? 'Click eye icon to reveal password' : modalMode === 'edit' ? 'Leave empty to keep current password' : 'Set password manually (min 6 characters)'}
+                      </p>
+                      <div className="relative flex items-center">
+                        <input 
+                          type={modalMode === 'view' && showPassword ? 'text' : 'password'}
+                          name="password"
+                          value={formData.password || ''}
+                          onChange={handleInputChange}
+                          disabled={modalMode === 'view'}
+                          placeholder={modalMode === 'add' ? 'Set password (min 6 chars)' : 'Enter new password (optional)'}
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed transition"
+                        />
+                        {modalMode === 'view' && (
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 text-gray-600 hover:text-gray-900 transition"
+                          >
+                            <Eye size={18} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">System Role</label>
@@ -800,6 +917,7 @@ export default function EmployeePage() {
                       allowances: "",
                       deductions: "",
                       workEmail: "",
+                      password: "",
                       systemRole: "Employee",
                     });
                     setPhoto(null);
@@ -908,116 +1026,7 @@ export default function EmployeePage() {
         </div>
       )}
 
-      {/* Employee Credentials Modal */}
-      {showCredentialsModal && createdEmployeeCredentials && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
-            {/* Modal Header */}
-            <div className="px-6 py-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-green-100">
-              <h2 className="text-lg font-semibold text-gray-900">Employee Created Successfully! ✓</h2>
-              <p className="text-sm text-gray-600 mt-1">Share these credentials with the employee</p>
-            </div>
-
-            {/* Modal Content */}
-            <div className="px-6 py-6 space-y-4">
-              {/* Name */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <label className="text-xs font-medium text-gray-600 uppercase tracking-wide">Employee Name</label>
-                <p className="text-lg font-semibold text-gray-900 mt-1">{createdEmployeeCredentials.name}</p>
-              </div>
-
-              {/* Employee ID */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <label className="text-xs font-medium text-gray-600 uppercase tracking-wide">Employee ID</label>
-                <div className="flex items-center justify-between mt-1">
-                  <p className="text-lg font-mono text-gray-900">{createdEmployeeCredentials.employeeId}</p>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(createdEmployeeCredentials.employeeId);
-                      alert('Employee ID copied!');
-                    }}
-                    className="text-xs px-2 py-1 bg-indigo-100 text-indigo-600 rounded hover:bg-indigo-200 transition"
-                  >
-                    Copy
-                  </button>
-                </div>
-              </div>
-
-              {/* Email */}
-              <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                <label className="text-xs font-medium text-blue-600 uppercase tracking-wide">Login Email</label>
-                <div className="flex items-center justify-between mt-1">
-                  <p className="text-lg font-mono text-blue-900 break-all">{createdEmployeeCredentials.email}</p>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(createdEmployeeCredentials.email);
-                      alert('Email copied!');
-                    }}
-                    className="text-xs px-2 py-1 bg-blue-200 text-blue-700 rounded hover:bg-blue-300 transition ml-2 whitespace-nowrap"
-                  >
-                    Copy
-                  </button>
-                </div>
-              </div>
-
-              {/* Password */}
-              <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
-                <label className="text-xs font-medium text-amber-700 uppercase tracking-wide">Temporary Password</label>
-                <div className="flex items-center justify-between mt-1">
-                  <p className="text-lg font-mono text-amber-900">{createdEmployeeCredentials.password}</p>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(createdEmployeeCredentials.password);
-                      alert('Password copied!');
-                    }}
-                    className="text-xs px-2 py-1 bg-amber-200 text-amber-700 rounded hover:bg-amber-300 transition ml-2 whitespace-nowrap"
-                  >
-                    Copy
-                  </button>
-                </div>
-              </div>
-
-              {/* Important Notice */}
-              <div className="bg-red-50 rounded-lg p-4 border border-red-200">
-                <p className="text-sm text-red-800">
-                  <span className="font-semibold">⚠️ Important:</span> Make sure to share these credentials securely with the employee. Ask them to change their password on first login.
-                </p>
-              </div>
-
-              {/* Login URL Info */}
-              <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
-                <p className="text-sm text-indigo-800">
-                  <span className="font-semibold">📍 Login URL:</span> Employee panel login page
-                </p>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex gap-3 justify-end">
-              <button
-                onClick={() => {
-                  // Copy all credentials as text
-                  const credentialsText = `Employee Name: ${createdEmployeeCredentials.name}\nEmployee ID: ${createdEmployeeCredentials.employeeId}\nEmail: ${createdEmployeeCredentials.email}\nPassword: ${createdEmployeeCredentials.password}`;
-                  navigator.clipboard.writeText(credentialsText);
-                  alert('All credentials copied!');
-                }}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 font-medium transition"
-              >
-                Copy All
-              </button>
-              <button
-                onClick={() => {
-                  setShowCredentialsModal(false);
-                  setCreatedEmployeeCredentials(null);
-                }}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition shadow-sm"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      
       </div>
       )}
     </div>

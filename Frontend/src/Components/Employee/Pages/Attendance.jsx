@@ -8,8 +8,11 @@ import {
   TrendingUp,
 } from "lucide-react";
 import employeeAttendanceService from "../../../services/employeeAttendanceService";
+import { useSocket } from "../../../context/SocketContext";
+import employeeAuthService from "../../../services/employeeAuthService";
 
 export default function AttendanceDashboard() {
+  const [employeeName, setEmployeeName] = useState("Employee");
   const [checkInTime, setCheckInTime] = useState(null);
   const [checkOutTime, setCheckOutTime] = useState(null);
   const [lastCheckInDate, setLastCheckInDate] = useState(null);
@@ -17,6 +20,7 @@ export default function AttendanceDashboard() {
   const [error, setError] = useState('');
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const { socket } = useSocket();
   
   // Get current month and year
   const currentDate = new Date();
@@ -32,13 +36,30 @@ export default function AttendanceDashboard() {
 
   useEffect(() => {
     loadAttendance();
+    loadEmployeeProfile();
   }, []);
+
+  const loadEmployeeProfile = async () => {
+    try {
+      const response = await employeeAuthService.getEmployeeProfile();
+      const data = response.data || response;
+      if (data?.name) {
+        setEmployeeName(data.name);
+      }
+    } catch (err) {
+      console.error('Error loading employee profile:', err);
+    }
+  };
 
   const loadAttendance = async () => {
     try {
       setIsLoading(true);
       const response = await employeeAttendanceService.getMyAttendance();
-      const data = response.data || response.attendance || response;
+      const data =
+        response?.data?.attendance ||
+        response?.attendance ||
+        (Array.isArray(response?.data) ? response.data : null) ||
+        (Array.isArray(response) ? response : []);
       
       if (Array.isArray(data)) {
         const formattedData = data.map((record) => ({
@@ -47,34 +68,63 @@ export default function AttendanceDashboard() {
           year: new Date(record.date).getFullYear().toString(),
           checkIn: record.checkInTime || '-',
           checkOut: record.checkOutTime || '-',
-          hours: record.totalHours || 'Ongoing',
+          hours: record.workingHours ? `${record.workingHours}h` : record.checkOutTime ? '0h' : 'Ongoing',
           dayType: record.type || 'Regular',
-          status: record.status || 'Present',
+          status: (record.status || 'present').replace(/^./, (c) => c.toUpperCase()),
           progress: record.progress || 0,
         }));
         setAttendanceHistory(formattedData);
+
+        const todayRecord = data.find((record) => {
+          const recordDate = new Date(record.date);
+          return (
+            recordDate.getDate() === currentDate.getDate() &&
+            recordDate.getMonth() === currentDate.getMonth() &&
+            recordDate.getFullYear() === currentDate.getFullYear()
+          );
+        });
+
+        if (todayRecord?.checkInTime) {
+          setCheckInTime(todayRecord.checkInTime);
+          setLastCheckInDate(todayDateString);
+          setCheckOutTime(todayRecord.checkOutTime || null);
+        } else {
+          setCheckInTime(null);
+          setCheckOutTime(null);
+          setLastCheckInDate(null);
+        }
+      } else {
+        setAttendanceHistory([]);
+        setCheckInTime(null);
+        setCheckOutTime(null);
+        setLastCheckInDate(null);
       }
       setError('');
     } catch (err) {
       console.error('Error loading attendance:', err);
       setError(err.message || 'Failed to load attendance');
-      setAttendanceHistory([
-        {
-          date: "Mar 31, 2026",
-          month: "March",
-          year: "2026",
-          checkIn: "01:30 PM",
-          checkOut: "-",
-          hours: "5h 27m (ongoing)",
-          dayType: "In Progress",
-          status: "Present",
-          progress: 65,
-        },
-      ]);
+      setAttendanceHistory([]);
+      setCheckInTime(null);
+      setCheckOutTime(null);
+      setLastCheckInDate(null);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Listen to real-time attendance updates via Socket.io
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on('attendance:marked', (data) => {
+      console.log('Attendance marked in real-time:', data);
+      loadAttendance(); // Refresh attendance data
+    });
+
+    return () => {
+      socket.off('attendance:marked');
+    };
+  }, [socket]);
 
   const getCurrentTime = () => {
     const now = new Date();
@@ -104,7 +154,7 @@ export default function AttendanceDashboard() {
   };
 
   const handleCheckIn = async () => {
-    // Check if already checked in today
+    // Don't allow re-check-in on same day after check-in or check-out.
     if (lastCheckInDate === todayDateString) {
       alert("You have already checked in today. You can check in again tomorrow.");
       return;
@@ -116,29 +166,7 @@ export default function AttendanceDashboard() {
       const data = response.data || response;
       
       if (data) {
-        const time = getCurrentTime();
-        setCheckInTime(time);
-        setLastCheckInDate(todayDateString);
-        
-        // Add entry to table immediately
-        const today = new Date();
-        const todayDate = `${months[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`;
-        const todayMonth = months[today.getMonth()];
-        const todayYear = today.getFullYear().toString();
-        
-        const todayEntry = {
-          date: todayDate,
-          month: todayMonth,
-          year: todayYear,
-          checkIn: time,
-          checkOut: "-",
-          hours: "calculating...",
-          dayType: "In Progress",
-          status: "Present",
-          progress: 0
-        };
-        
-        setAttendanceHistory([todayEntry, ...attendanceHistory]);
+        await loadAttendance();
         alert("Check-in successful!");
       }
     } catch (err) {
@@ -155,31 +183,10 @@ export default function AttendanceDashboard() {
         setIsCheckingOut(true);
         const response = await employeeAttendanceService.checkOut();
         const data = response.data || response;
-        
+
         if (data) {
-          const time = getCurrentTime();
-          setCheckOutTime(time);
-          
-          // Update the first entry (today's entry) with checkout time
-          const { hours, progress } = calculateHours(checkInTime, time);
-          
-          const updatedHistory = [...attendanceHistory];
-          updatedHistory[0] = {
-            ...updatedHistory[0],
-            checkOut: time,
-            hours: hours,
-            dayType: "Regular",
-            progress: progress
-          };
-          
-          setAttendanceHistory(updatedHistory);
+          await loadAttendance();
           alert("Check-out successful!");
-          
-          // Auto reset after 2 seconds for next day
-          setTimeout(() => {
-            setCheckInTime(null);
-            setCheckOutTime(null);
-          }, 2000);
         }
       } catch (err) {
         console.error('Error checking out:', err);
@@ -190,11 +197,6 @@ export default function AttendanceDashboard() {
     }
   };
 
-  const handleReset = () => {
-    setCheckInTime(null);
-    setCheckOutTime(null);
-  };
-
   // Calculate statistics based on filtered data
   const filteredAttendance = attendanceHistory.filter(item =>
     item.month === selectedMonth &&
@@ -203,8 +205,79 @@ export default function AttendanceDashboard() {
 
   const presentCount = filteredAttendance.filter(item => item.status === "Present").length;
   const totalDays = filteredAttendance.length;
+  const completedRecords = filteredAttendance.filter((item) => item.checkIn !== '-' && item.checkOut !== '-');
 
-  const isMarkedPresent = checkInTime !== null;
+  const parseTimeToMinutes = (timeValue) => {
+    if (!timeValue || timeValue === '-') return null;
+    const value = String(timeValue).trim();
+
+    // 12-hour format e.g. 10:33 AM
+    const meridiemMatch = value.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (meridiemMatch) {
+      let hour = Number(meridiemMatch[1]);
+      const minute = Number(meridiemMatch[2]);
+      const meridiem = meridiemMatch[3].toUpperCase();
+      if (meridiem === 'PM' && hour !== 12) hour += 12;
+      if (meridiem === 'AM' && hour === 12) hour = 0;
+      return hour * 60 + minute;
+    }
+
+    // 24-hour format e.g. 19:12 or 19:12:00
+    const twentyFourMatch = value.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+    if (twentyFourMatch) {
+      return Number(twentyFourMatch[1]) * 60 + Number(twentyFourMatch[2]);
+    }
+
+    return null;
+  };
+
+  const formatMinutesTo12Hour = (minutes) => {
+    if (minutes === null || Number.isNaN(minutes)) return '-';
+    const hour24 = Math.floor(minutes / 60) % 24;
+    const minute = minutes % 60;
+    const meridiem = hour24 >= 12 ? 'PM' : 'AM';
+    const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+    return `${String(hour12).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${meridiem}`;
+  };
+
+  const checkInMinutesList = filteredAttendance
+    .map((item) => parseTimeToMinutes(item.checkIn))
+    .filter((v) => v !== null);
+
+  const checkOutMinutesList = filteredAttendance
+    .map((item) => parseTimeToMinutes(item.checkOut))
+    .filter((v) => v !== null);
+
+  const averageCheckInMinutes = checkInMinutesList.length
+    ? Math.round(checkInMinutesList.reduce((sum, val) => sum + val, 0) / checkInMinutesList.length)
+    : null;
+
+  const averageCheckOutMinutes = checkOutMinutesList.length
+    ? Math.round(checkOutMinutesList.reduce((sum, val) => sum + val, 0) / checkOutMinutesList.length)
+    : null;
+
+  const onTimeThresholdMinutes = 10 * 60; // 10:00 AM
+  const onTimeCount = checkInMinutesList.filter((mins) => mins <= onTimeThresholdMinutes).length;
+  const onTimePercentage = checkInMinutesList.length
+    ? ((onTimeCount / checkInMinutesList.length) * 100).toFixed(2)
+    : '0.00';
+
+  const averageMinutes = completedRecords.length
+    ? Math.round(
+        completedRecords.reduce((sum, item) => {
+          const [hoursPart, minsPart] = String(item.hours || '0h 0m').split(' ');
+          const hours = Number((hoursPart || '0').replace('h', '')) || 0;
+          const mins = Number((minsPart || '0').replace('m', '')) || 0;
+          return sum + hours * 60 + mins;
+        }, 0) / completedRecords.length
+      )
+    : 0;
+  const avgHours = Math.floor(averageMinutes / 60);
+  const avgMins = averageMinutes % 60;
+
+  const canCheckIn = !checkInTime && lastCheckInDate !== todayDateString;
+  const canCheckOut = Boolean(checkInTime) && !checkOutTime;
+  const isActionDisabled = isCheckingIn || isCheckingOut || (!canCheckIn && !canCheckOut);
 
   return (
     <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
@@ -213,7 +286,7 @@ export default function AttendanceDashboard() {
         {/* Header */}
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-            Good afternoon, Sourav!
+            Good afternoon, {employeeName}!
           </h1>
         </div>
 
@@ -277,32 +350,28 @@ export default function AttendanceDashboard() {
 
             <button 
               onClick={() => {
-                if (!checkInTime) {
+                if (canCheckIn) {
                   handleCheckIn();
-                } else if (!checkOutTime) {
+                } else if (canCheckOut) {
                   handleCheckOut();
-                } else {
-                  handleReset();
                 }
               }}
-              disabled={lastCheckInDate === todayDateString && !checkInTime && !checkOutTime}
+              disabled={isActionDisabled}
               className={`w-full py-2.5 rounded-lg font-medium text-sm transition text-white ${
-                lastCheckInDate === todayDateString && !checkInTime && !checkOutTime
+                isActionDisabled
                   ? "bg-gray-400 cursor-not-allowed"
-                  : !checkInTime
+                  : canCheckIn
                   ? "bg-teal-600 hover:bg-teal-700" 
-                  : !checkOutTime
+                  : canCheckOut
                   ? "bg-teal-600 hover:bg-teal-700"
                   : "bg-gray-500 hover:bg-gray-600"
               }`}
             >
-              {lastCheckInDate === todayDateString && !checkInTime && !checkOutTime
-                ? "Already checked out today"
-                : !checkInTime
+              {canCheckIn
                 ? "Check In"
-                : !checkOutTime
+                : canCheckOut
                 ? "Check Out"
-                : "Reset"}
+                : "Completed for Today"}
             </button>
           </div>
 
@@ -313,7 +382,7 @@ export default function AttendanceDashboard() {
                 <Clock3 className="text-teal-600 w-5 h-5" />
               </div>
               <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Average hours</p>
-              <h2 className="text-xl font-bold text-gray-900">7h 17mins</h2>
+              <h2 className="text-xl font-bold text-gray-900">{avgHours}h {avgMins}mins</h2>
             </div>
 
             <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
@@ -321,7 +390,7 @@ export default function AttendanceDashboard() {
                 <LogIn className="text-orange-500 w-5 h-5" />
               </div>
               <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Average check-in</p>
-              <h2 className="text-xl font-bold text-gray-900">10:33 AM</h2>
+              <h2 className="text-xl font-bold text-gray-900">{formatMinutesTo12Hour(averageCheckInMinutes)}</h2>
             </div>
           </div>
 
@@ -332,7 +401,7 @@ export default function AttendanceDashboard() {
                 <LogOut className="text-teal-600 w-5 h-5" />
               </div>
               <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Average check-out</p>
-              <h2 className="text-xl font-bold text-gray-900">19:12 PM</h2>
+              <h2 className="text-xl font-bold text-gray-900">{formatMinutesTo12Hour(averageCheckOutMinutes)}</h2>
             </div>
 
             <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
@@ -340,7 +409,7 @@ export default function AttendanceDashboard() {
                 <CheckCircle2 className="text-teal-600 w-5 h-5" />
               </div>
               <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">On-time arrival</p>
-              <h2 className="text-xl font-bold text-black">98.56%</h2>
+              <h2 className="text-xl font-bold text-black">{onTimePercentage}%</h2>
             </div>
           </div>
 

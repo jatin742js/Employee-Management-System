@@ -1,64 +1,107 @@
 import React, { useState, useEffect } from "react";
-import { Download, Filter } from "lucide-react";
+import { Download } from "lucide-react";
 import employeePayrollService from "../../../services/employeePayrollService";
+import { useSocket } from "../../../context/SocketContext";
 
 const PayrollPage = () => {
-  const [selectedMonth, setSelectedMonth] = useState("March");
-  const [selectedYear, setSelectedYear] = useState("2026");
+  const [selectedMonth, setSelectedMonth] = useState("All");
+  const [selectedYear, setSelectedYear] = useState("All");
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [payrollData, setPayrollData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const { socket } = useSocket();
+
+  const formatMonthYear = (monthValue) => {
+    if (!monthValue || !monthValue.includes('-')) {
+      const now = new Date();
+      return {
+        month: now.toLocaleString('en-US', { month: 'long' }),
+        year: now.getFullYear().toString(),
+      };
+    }
+
+    const [year, month] = monthValue.split('-');
+    const monthIndex = Number(month);
+    const monthNames = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+
+    return {
+      month: monthNames[monthIndex - 1] || 'Unknown',
+      year,
+    };
+  };
 
   useEffect(() => {
     loadPayroll();
   }, []);
 
+  // Listen to real-time payroll updates via Socket.io
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on('payroll:notified', (data) => {
+      console.log('Payroll notification received:', data);
+      loadPayroll(); // Refresh payroll data
+    });
+
+    socket.on('payroll:updated', (data) => {
+      console.log('Payroll updated:', data);
+      loadPayroll();
+    });
+
+    socket.on('payroll:statusUpdated', (data) => {
+      console.log('Payroll status updated:', data);
+      loadPayroll();
+    });
+
+    return () => {
+      socket.off('payroll:notified');
+      socket.off('payroll:updated');
+      socket.off('payroll:statusUpdated');
+    };
+  }, [socket]);
+
   const loadPayroll = async () => {
     try {
       setIsLoading(true);
       const response = await employeePayrollService.getMyPayroll();
-      const data = response.data || response.payroll || response;
+      const data =
+        response?.data?.payroll ||
+        response?.payroll ||
+        (Array.isArray(response?.data) ? response.data : null) ||
+        (Array.isArray(response) ? response : []);
       
       if (Array.isArray(data)) {
         const formattedPayroll = data.map((payroll) => ({
-          month: new Date(payroll.date || payroll.createdAt).toLocaleString('en-US', { month: 'long' }),
-          year: new Date(payroll.date || payroll.createdAt).getFullYear().toString(),
-          gross: `₹${payroll.basicSalary || 50000}`,
-          deduction: `₹${payroll.deductions || 8000}`,
-          bonus: `₹${payroll.allowances || 2500}`,
-          net: `₹${(payroll.basicSalary || 50000) - (payroll.deductions || 8000)}`,
-          status: payroll.status || 'Paid',
+          ...formatMonthYear(payroll.month),
+          gross: `₹${Number(payroll.baseSalary || 0).toLocaleString('en-IN')}`,
+          deduction: `₹${Number(payroll.deductions || 0).toLocaleString('en-IN')}`,
+          bonus: `₹${Number(payroll.allowances || 0).toLocaleString('en-IN')}`,
+          net: `₹${Number(payroll.netSalary || 0).toLocaleString('en-IN')}`,
+          status: (payroll.paymentStatus || payroll.status || 'pending').replace(/^./, (c) => c.toUpperCase()),
         }));
         setPayrollData(formattedPayroll);
       } else {
-        setPayrollData([
-          {
-            month: "March",
-            year: "2026",
-            gross: "₹50,000",
-            deduction: "₹8,000",
-            bonus: "₹2,500",
-            net: "₹44,500",
-            status: "Paid",
-          },
-        ]);
+        setPayrollData([]);
       }
       setError('');
     } catch (err) {
       console.error('Error loading payroll:', err);
       setError(err.message || 'Failed to load payroll');
-      setPayrollData([
-        {
-          month: "March",
-          year: "2026",
-          gross: "₹50,000",
-          deduction: "₹8,000",
-          bonus: "₹2,500",
-          net: "₹44,500",
-          status: "Paid",
-        },
-      ]);
+      setPayrollData([]);
     } finally {
       setIsLoading(false);
     }
@@ -66,8 +109,8 @@ const PayrollPage = () => {
 
   const filteredData = payrollData.filter(
     (item) =>
-      item.month === selectedMonth &&
-      item.year === selectedYear &&
+      (selectedMonth === "All" || item.month === selectedMonth) &&
+      (selectedYear === "All" || item.year === selectedYear) &&
       (selectedStatus === "All" || item.status === selectedStatus)
   );
 
@@ -111,6 +154,7 @@ const PayrollPage = () => {
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(e.target.value)}
                 >
+                  <option>All</option>
                   <option>January</option>
                   <option>February</option>
                   <option>March</option>
@@ -132,11 +176,11 @@ const PayrollPage = () => {
                   Year
                 </label>
                 <input
-                  type="number"
+                  type="text"
                   className="w-full border border-gray-200 rounded-lg px-3 py-2.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm text-gray-900"
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(e.target.value)}
-                  placeholder="Enter year (e.g., 2026)"
+                  placeholder="All or 2026"
                 />
               </div>
 

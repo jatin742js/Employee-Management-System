@@ -7,9 +7,12 @@ import {
   Clock,
   Download,
   Eye,
+  Trash2,
 } from 'lucide-react';
 import adminDashboardService from '../../../services/adminDashboardService';
 import adminLeaveService from '../../../services/adminLeaveService';
+import adminNotificationService from '../../../services/adminNotificationService';
+import { useSocket } from '../../../context/SocketContext';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -28,10 +31,71 @@ const AdminDashboard = () => {
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [error, setError] = useState('');
+  const { socket } = useSocket();
+
+  const formatLeaveTypeLabel = (leaveType) => {
+    const type = (leaveType || '').toLowerCase();
+    if (type === 'earned') return 'Annual Leave';
+    if (!type) return 'Leave';
+    return `${type.charAt(0).toUpperCase()}${type.slice(1)} Leave`;
+  };
 
   useEffect(() => {
     loadDashboardData();
   }, []);
+
+  // Listen to real-time socket events
+  useEffect(() => {
+    if (!socket) return;
+
+    // Listen for new payroll notifications
+    socket.on('payroll:created', (data) => {
+      console.log('Payroll created event received:', data);
+      // Refresh notifications automatically
+      refreshNotifications();
+    });
+
+    // Listen for employee creation
+    socket.on('employee:created', (data) => {
+      console.log('Employee created event received:', data);
+      // Update employee count
+      setStats(prev => ({ ...prev, totalEmployees: prev.totalEmployees + 1 }));
+      // Show notification toast or alert
+      console.log(`New employee: ${data.name}`);
+    });
+
+    // Listen for employee updates
+    socket.on('employee:updated', (data) => {
+      console.log('Employee updated event received:', data);
+    });
+
+    // Listen for attendance changes and refresh dashboard stats.
+    socket.on('attendance:marked', (data) => {
+      console.log('Attendance marked event received:', data);
+      loadDashboardData();
+    });
+
+    return () => {
+      socket.off('payroll:created');
+      socket.off('employee:created');
+      socket.off('employee:updated');
+      socket.off('attendance:marked');
+    };
+  }, [socket]);
+
+  // Function to refresh notifications
+  const refreshNotifications = async () => {
+    try {
+      const notifResponse = await adminNotificationService.getAllNotifications({ limit: 5 });
+      const notificationsData =
+        notifResponse?.data?.notifications ||
+        notifResponse?.notifications ||
+        [];
+      setNotifications(Array.isArray(notificationsData) ? notificationsData : []);
+    } catch (err) {
+      console.error('Error refreshing notifications:', err);
+    }
+  };
 
   const loadDashboardData = async () => {
     try {
@@ -52,7 +116,7 @@ const AdminDashboard = () => {
       if (statsResponse.data) {
         setStats({
           totalEmployees: statsResponse.data.totalEmployees || 0,
-          presentToday: statsResponse.data.presentToday || 0,
+          presentToday: statsResponse.data.todayAttendance || statsResponse.data.presentToday || 0,
           onLeave: statsResponse.data.onLeave || 0,
           pendingRequests: statsResponse.data.pendingLeaves || 0,
         });
@@ -61,8 +125,24 @@ const AdminDashboard = () => {
       // Fetch leave requests with pending status
       const leavesResponse = await adminLeaveService.getAllLeaves({ status: 'pending' });
       if (leavesResponse.data && leavesResponse.data.leaves) {
-        setLeaveRequests(leavesResponse.data.leaves.slice(0, 4));
+        const mappedLeaves = leavesResponse.data.leaves.slice(0, 4).map((leave) => ({
+          id: leave._id,
+          employee: leave.employee?.name || 'Employee',
+          type: formatLeaveTypeLabel(leave.leaveType),
+          days: leave.numberOfDays || 0,
+          date: `${new Date(leave.startDate).toLocaleDateString('en-IN')} - ${new Date(leave.endDate).toLocaleDateString('en-IN')}`,
+          status: leave.status || 'pending',
+        }));
+        setLeaveRequests(mappedLeaves);
       }
+
+      // Fetch notifications
+      const notifResponse = await adminNotificationService.getAllNotifications({ limit: 5 });
+      const notificationsData =
+        notifResponse?.data?.notifications ||
+        notifResponse?.notifications ||
+        [];
+      setNotifications(Array.isArray(notificationsData) ? notificationsData : []);
     } catch (err) {
       const errorMsg = err.message || err.data?.message || 'Failed to load dashboard data';
       setError(errorMsg);
@@ -78,7 +158,7 @@ const AdminDashboard = () => {
       // Update local state
       setLeaveRequests(prev =>
         prev.map(req =>
-          req._id === id || req.id === id ? { ...req, status: 'approved' } : req
+          req.id === id ? { ...req, status: 'approved' } : req
         )
       );
     } catch (err) {
@@ -93,7 +173,7 @@ const AdminDashboard = () => {
       // Update local state
       setLeaveRequests(prev =>
         prev.map(req =>
-          req._id === id || req.id === id ? { ...req, status: 'rejected' } : req
+          req.id === id ? { ...req, status: 'rejected' } : req
         )
       );
     } catch (err) {
@@ -121,18 +201,36 @@ const AdminDashboard = () => {
 
   const getNotificationIcon = (type) => {
     const iconConfig = {
-      approval: { color: 'text-green-600 dark:text-green-400', label: 'Approval' },
-      salary: { color: 'text-blue-600 dark:text-blue-400', label: 'Salary' },
-      review: { color: 'text-purple-600 dark:text-purple-400', label: 'Review' },
-      meeting: { color: 'text-orange-600 dark:text-orange-400', label: 'Meeting' },
-      document: { color: 'text-red-600 dark:text-red-400', label: 'Document' },
+      payroll_sent: { color: 'text-green-600 dark:text-green-400', label: 'Payroll', bg: 'bg-green-50' },
+      payroll_updated: { color: 'text-blue-600 dark:text-blue-400', label: 'Updated', bg: 'bg-blue-50' },
+      payment_processed: { color: 'text-purple-600 dark:text-purple-400', label: 'Payment', bg: 'bg-purple-50' },
+      payment_completed: { color: 'text-indigo-600 dark:text-indigo-400', label: 'Completed', bg: 'bg-indigo-50' },
+      approval: { color: 'text-green-600 dark:text-green-400', label: 'Approval', bg: 'bg-green-50' },
+      salary: { color: 'text-blue-600 dark:text-blue-400', label: 'Salary', bg: 'bg-blue-50' },
+      review: { color: 'text-purple-600 dark:text-purple-400', label: 'Review', bg: 'bg-purple-50' },
+      meeting: { color: 'text-orange-600 dark:text-orange-400', label: 'Meeting', bg: 'bg-orange-50' },
+      document: { color: 'text-red-600 dark:text-red-400', label: 'Document', bg: 'bg-red-50' },
     };
     const config = iconConfig[type] || iconConfig.approval;
     return config;
   };
 
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
+
+  const handleDeleteNotification = async (notifId) => {
+    try {
+      await adminNotificationService.deleteNotification(notifId);
+      setNotifications(prev => prev.filter(n => n._id !== notifId));
+    } catch (err) {
+      console.error('Error deleting notification:', err);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header with admin info */}
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -260,39 +358,46 @@ const AdminDashboard = () => {
           {/* Sent Notifications */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Sent Notifications</h2>
-             
+              <h2 className="text-lg font-semibold text-gray-900">Payroll Notifications</h2>
             </div>
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
               {notifications.length > 0 ? (
                 notifications.map((notif) => {
                   const iconConfig = getNotificationIcon(notif.type);
+                  const employeeName = notif.employee?.name || 'Employee';
                   return (
-                    <div key={notif.id} className="px-6 py-4 hover:bg-gray-50 transition border-b border-gray-200 last:border-0">
+                    <div key={notif._id} className="px-6 py-4 hover:bg-gray-50 transition">
                       <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-900">{notif.employee}</p>
-                          <p className="text-sm text-gray-600 mt-1">{notif.message}</p>
-                          <p className="text-xs text-gray-600 mt-2">{notif.time}</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 truncate">{employeeName}</p>
+                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">{notif.title}</p>
+                          {notif.description && (
+                            <p className="text-xs text-gray-500 mt-1">{notif.description}</p>
+                          )}
+                          <p className="text-xs text-gray-500 mt-2">{formatDate(notif.createdAt)}</p>
                         </div>
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-medium text-gray-700 bg-gray-100 whitespace-nowrap flex-shrink-0 ${iconConfig.color}`}>
-                          {iconConfig.label}
-                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${iconConfig.bg} ${iconConfig.color}`}>
+                            {iconConfig.label}
+                          </span>
+                          <button
+                            onClick={() => handleDeleteNotification(notif._id)}
+                            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition"
+                            title="Delete notification"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
                 })
               ) : (
                 <div className="px-6 py-8 text-center">
-                  <p className="text-gray-500 font-medium">No sent notifications</p>
+                  <p className="text-gray-500 font-medium">No payroll notifications</p>
                 </div>
               )}
             </div>
-            {/* <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700">
-              <button className="w-full text-indigo-600 text-sm font-medium hover:underline">
-                View all notifications →
-              </button>
-            </div> */}
           </div>
         </div>
 

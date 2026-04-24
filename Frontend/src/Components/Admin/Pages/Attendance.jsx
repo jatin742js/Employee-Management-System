@@ -50,17 +50,38 @@ const AttendancePage = () => {
     try {
       setIsLoading(true);
       const dateString = selectedDate.toISOString().split('T')[0]; // YYYY-MM-DD format
-      const response = await adminAttendanceService.getAttendance({ date: dateString });
-      
-      if (response && response.attendance) {
-        setAttendance(response.attendance);
-        // Calculate stats
-        const total = response.attendance.length;
-        const present = response.attendance.filter(a => a.status === 'present').length;
-        const late = response.attendance.filter(a => a.late).length;
-        const onLeave = response.attendance.filter(a => a.status === 'on-leave').length;
-        setStats({ total, present, late, onLeave });
-      }
+      const response = await adminAttendanceService.getAttendance({
+        fromDate: dateString,
+        toDate: dateString,
+      });
+
+      const attendanceData =
+        response?.data?.attendance ||
+        response?.attendance ||
+        (Array.isArray(response?.data) ? response.data : null) ||
+        (Array.isArray(response) ? response : []);
+
+      const normalizedAttendance = Array.isArray(attendanceData)
+        ? attendanceData.map((record) => ({
+            id: record._id,
+            name: record.employee?.name || 'Unknown',
+            department: record.employee?.department || 'N/A',
+            checkIn: record.checkInTime || null,
+            checkOut: record.checkOutTime || null,
+            status: (record.status || 'absent').toLowerCase(),
+            late: false,
+          }))
+        : [];
+
+      setAttendance(normalizedAttendance);
+
+      // Calculate stats
+      const total = normalizedAttendance.length;
+      const present = normalizedAttendance.filter((a) => a.status === 'present').length;
+      const late = normalizedAttendance.filter((a) => a.status === 'half-day').length;
+      const onLeave = normalizedAttendance.filter((a) => a.status === 'leave').length;
+      setStats({ total, present, late, onLeave });
+
       setError('');
     } catch (err) {
       const errorMsg = err.message || 'Failed to load attendance data';
@@ -88,8 +109,9 @@ const AttendancePage = () => {
 
   // Filter employees
   const filteredEmployees = attendance.filter(emp => {
-    const matchesSearch = emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.department.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch =
+      (emp.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (emp.department || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDepartment = departmentFilter === 'all' || emp.department === departmentFilter;
     const matchesStatus = statusFilter === 'all' || emp.status === statusFilter;
     return matchesSearch && matchesDepartment && matchesStatus;
@@ -108,7 +130,8 @@ const AttendancePage = () => {
     }
     if (status === 'late') return <Clock className="h-4 w-4 text-orange-500" />;
     if (status === 'absent') return <AlertCircle className="h-4 w-4 text-red-500" />;
-    if (status === 'on-leave') return <Calendar className="h-4 w-4 text-blue-500" />;
+    if (status === 'leave') return <Calendar className="h-4 w-4 text-blue-500" />;
+    if (status === 'half-day') return <Clock className="h-4 w-4 text-orange-500" />;
     return null;
   };
 
@@ -120,7 +143,8 @@ const AttendancePage = () => {
     }
     if (status === 'late') return <span className="px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-700">Late</span>;
     if (status === 'absent') return <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">Absent</span>;
-    if (status === 'on-leave') return <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">On Leave</span>;
+    if (status === 'leave') return <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">On Leave</span>;
+    if (status === 'half-day') return <span className="px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-700">Half Day</span>;
     return null;
   };
 
@@ -159,7 +183,7 @@ const AttendancePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-4 sm:px-6 lg:px-8 py-6">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 px-4 sm:px-6 lg:px-8 py-6">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Attendance Management</h1>
@@ -257,7 +281,7 @@ const AttendancePage = () => {
               <ChevronLeft className="h-5 w-5 text-gray-600" />
             </button>
             <div className="text-center min-w-max">
-              <p className="text-base sm:text-lg font-semibold text-gray-900 break-words">{formatDate(selectedDate)}</p>
+              <p className="text-base sm:text-lg font-semibold text-gray-900 wrap-break-word">{formatDate(selectedDate)}</p>
             </div>
             <button
               onClick={() => changeDate(1)}
@@ -296,7 +320,9 @@ const AttendancePage = () => {
             >
               <option value="all">All Status</option>
               <option value="present">Present</option>
-              <option value="on-leave">On Leave</option>
+              <option value="leave">On Leave</option>
+              <option value="half-day">Half Day</option>
+              <option value="absent">Absent</option>
             </select>
           </div>
         </div>

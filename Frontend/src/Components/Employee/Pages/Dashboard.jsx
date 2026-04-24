@@ -12,6 +12,10 @@ import {
 } from 'lucide-react';
 import employeeDashboardService from '../../../services/employeeDashboardService';
 import employeeAuthService from '../../../services/employeeAuthService';
+import employeeAttendanceService from '../../../services/employeeAttendanceService';
+import employeePayrollService from '../../../services/employeePayrollService';
+import employeeLeaveService from '../../../services/employeeLeaveService';
+import { useSocket } from '../../../context/SocketContext';
 
 const Dashboard = () => {
   const [employeeData, setEmployeeData] = useState({
@@ -51,24 +55,111 @@ const Dashboard = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [payrollNotifications, setPayrollNotifications] = useState([]);
+  const [recentActivities, setRecentActivities] = useState([]);
+  const { socket } = useSocket();
 
-  const upcomingEvents = [
-    { id: 1, title: 'Monthly Performance Review', date: 'April 15, 2026', type: 'review', icon: '📊' },
-    { id: 2, title: 'Team Meeting', date: 'April 10, 2026', type: 'meeting', icon: '👥' },
-    { id: 3, title: 'Project Deadline', date: 'April 12, 2026', type: 'deadline', icon: '🎯' },
-    { id: 4, title: 'Vacation Approved', date: 'April 20-27, 2026', type: 'leave', icon: '🏖️' },
-  ];
+  const formatLeaveTypeLabel = (leaveType) => {
+    const type = (leaveType || '').toLowerCase();
+    if (type === 'earned') return 'Annual Leave';
+    if (!type) return 'Leave';
+    return `${type.charAt(0).toUpperCase()}${type.slice(1)} Leave`;
+  };
 
-  const recentActivities = [
-    { id: 1, action: 'Attendance marked', time: 'Today at 9:30 AM', status: 'success' },
-    { id: 2, action: 'Salary processed', time: '2 days ago', status: 'success' },
-    { id: 3, action: 'Leave request submitted', time: '3 days ago', status: 'success' },
-    { id: 4, action: 'Document updated', time: '1 week ago', status: 'neutral' },
-  ];
+  const formatPayrollNotification = (payroll) => {
+    if (!payroll) return null;
+
+    const amount = payroll.netSalary ?? payroll.baseSalary ?? 0;
+    const monthLabel = payroll.month
+      ? new Date(`${payroll.month}-01`).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+      : 'Current Month';
+
+    return {
+      id: payroll._id || payroll.payrollId || `${Date.now()}-${Math.random()}`,
+      title: payroll.message || `Payslip available for ${monthLabel}`,
+      date: payroll.createdAt
+        ? new Date(payroll.createdAt).toLocaleDateString('en-IN')
+        : new Date().toLocaleDateString('en-IN'),
+      type: (payroll.paymentStatus || 'processed').toLowerCase(),
+      amount,
+    };
+  };
 
   useEffect(() => {
-    loadDashboardData();
+    const loadAll = async () => {
+      await loadDashboardData();
+      await loadPayrollNotifications();
+      await loadRecentActivities();
+    };
+    loadAll();
   }, []);
+
+  // Listen to real-time socket events for payroll notifications
+  useEffect(() => {
+    if (!socket) return;
+
+    const refreshDashboardCards = () => {
+      loadDashboardData();
+      loadRecentActivities();
+    };
+
+    socket.on('payroll:notified', (data) => {
+      console.log('Payroll notification received:', data);
+      const notification = formatPayrollNotification(data);
+      if (notification) {
+        setPayrollNotifications((prev) => [notification, ...prev].slice(0, 10));
+      }
+      refreshDashboardCards();
+    });
+
+    socket.on('payroll:updated', (data) => {
+      console.log('Payroll updated notification received:', data);
+      const notification = formatPayrollNotification(data);
+      if (notification) {
+        setPayrollNotifications((prev) => [notification, ...prev].slice(0, 10));
+      }
+      refreshDashboardCards();
+    });
+
+    socket.on('payroll:statusUpdated', (data) => {
+      console.log('Payroll status updated notification received:', data);
+      const notification = formatPayrollNotification(data);
+      if (notification) {
+        setPayrollNotifications((prev) => [notification, ...prev].slice(0, 10));
+      }
+      refreshDashboardCards();
+    });
+
+    socket.on('attendance:marked', (data) => {
+      console.log('Attendance event received:', data);
+      refreshDashboardCards();
+    });
+
+    socket.on('leave:approved', (data) => {
+      console.log('Leave approved event received:', data);
+      refreshDashboardCards();
+    });
+
+    socket.on('leave:rejected', (data) => {
+      console.log('Leave rejected event received:', data);
+      refreshDashboardCards();
+    });
+
+    socket.on('leave:statusUpdated', (data) => {
+      console.log('Leave status updated event received:', data);
+      refreshDashboardCards();
+    });
+
+    return () => {
+      socket.off('payroll:notified');
+      socket.off('payroll:updated');
+      socket.off('payroll:statusUpdated');
+      socket.off('attendance:marked');
+      socket.off('leave:approved');
+      socket.off('leave:rejected');
+      socket.off('leave:statusUpdated');
+    };
+  }, [socket]);
 
   const loadDashboardData = async () => {
     try {
@@ -89,25 +180,75 @@ const Dashboard = () => {
       }
 
       // Load dashboard stats
-      const statsResponse = await employeeDashboardService.getDashboardStats();
+      const [statsResponse, attendanceResponse] = await Promise.all([
+        employeeDashboardService.getDashboardStats(),
+        employeeAttendanceService.getMyAttendance(),
+      ]);
+
       const stats = statsResponse.data || statsResponse;
+      const attendanceRecords =
+        attendanceResponse?.data?.attendance ||
+        attendanceResponse?.attendance ||
+        (Array.isArray(attendanceResponse?.data) ? attendanceResponse.data : null) ||
+        (Array.isArray(attendanceResponse) ? attendanceResponse : []);
 
       if (stats) {
+        const pendingLeaves = Number(stats.pendingLeaves || 0);
+        const approvedLeaves = Number(stats.approvedLeaves || 0);
+        const totalLeaves = pendingLeaves + approvedLeaves;
+
+        const now = new Date();
+        const monthAttendance = Array.isArray(attendanceRecords)
+          ? attendanceRecords.filter((record) => {
+              const date = new Date(record.date);
+              return (
+                date.getMonth() === now.getMonth() &&
+                date.getFullYear() === now.getFullYear()
+              );
+            })
+          : [];
+
+        const totalHours = monthAttendance.reduce(
+          (sum, record) => sum + Number(record.workingHours || 0),
+          0
+        );
+
+        const attendedDays = monthAttendance.filter((record) =>
+          ['present', 'half-day'].includes((record.status || '').toLowerCase())
+        ).length;
+
+        const attendanceRate = monthAttendance.length
+          ? `${Math.round((attendedDays / monthAttendance.length) * 100)}%`
+          : '0%';
+
+        const todayStatus = stats.todayAttendance?.status
+          ? stats.todayAttendance.status.charAt(0).toUpperCase() + stats.todayAttendance.status.slice(1)
+          : 'Not Marked';
+
         const updatedStats = [
           {
-            ...statsData[0],
-            value: stats.totalHours || '160',
-            trend: stats.hoursTrend || '+2.5% from last month',
+            title: 'Total Hours',
+            value: totalHours.toFixed(1),
+            unit: 'hrs/month',
+            icon: Clock,
+            color: 'teal',
+            trend: `${monthAttendance.length} attendance record(s) this month`,
           },
           {
-            ...statsData[1],
-            value: stats.totalLeaves || '12',
-            trend: stats.leavesTrend || '5 used this year',
+            title: 'Total Leaves',
+            value: String(totalLeaves),
+            unit: 'requests',
+            icon: Calendar,
+            color: 'cyan',
+            trend: `Pending: ${pendingLeaves} | Approved: ${approvedLeaves}`,
           },
           {
-            ...statsData[2],
-            value: stats.attendanceRate || '98%',
-            trend: stats.attendanceTrend || 'Excellent performance',
+            title: 'Attendance',
+            value: attendanceRate,
+            unit: 'attendance rate',
+            icon: UserCheck,
+            color: 'emerald',
+            trend: `Today: ${todayStatus}`,
           },
         ];
         setStatsData(updatedStats);
@@ -120,6 +261,77 @@ const Dashboard = () => {
       setError(errorMsg);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Load payroll notifications from latest payroll records
+  const loadPayrollNotifications = async () => {
+    try {
+      const response = await employeePayrollService.getMyPayroll();
+      const payrollList =
+        response?.data?.payroll ||
+        response?.payroll ||
+        (Array.isArray(response?.data) ? response.data : null) ||
+        (Array.isArray(response) ? response : []);
+
+      const notifications = Array.isArray(payrollList)
+        ? payrollList
+            .map((payroll) => formatPayrollNotification(payroll))
+            .filter(Boolean)
+            .slice(0, 6)
+        : [];
+
+      setPayrollNotifications(notifications);
+    } catch (err) {
+      console.error('Error loading payroll notifications:', err);
+      setPayrollNotifications([]);
+    }
+  };
+
+  // Load recent activities
+  const loadRecentActivities = async () => {
+    try {
+      const activities = [];
+      
+      // Get recent attendance
+      try {
+        const attendanceResponse = await employeeAttendanceService.getMyAttendance();
+        const attendance = Array.isArray(attendanceResponse.data) ? attendanceResponse.data : attendanceResponse.data?.attendance || [];
+        if (attendance.length > 0) {
+          const latest = attendance[0];
+          const date = new Date(latest.date);
+          activities.push({
+            id: 1,
+            action: 'Attendance marked',
+            time: `${date.toLocaleDateString('en-IN')} at ${latest.checkInTime || 'N/A'}`,
+            status: 'success',
+          });
+        }
+      } catch (e) {
+        console.error('Error loading attendance:', e);
+      }
+
+      // Get recent leaves
+      try {
+        const leavesResponse = await employeeLeaveService.getMyLeaves();
+        const leaves = Array.isArray(leavesResponse.data) ? leavesResponse.data : leavesResponse.data?.leaves || [];
+        if (leaves.length > 0) {
+          const latest = leaves[0];
+          activities.push({
+            id: 2,
+            action: `Leave request - ${formatLeaveTypeLabel(latest.leaveType)}`,
+            time: new Date(latest.createdAt).toLocaleDateString('en-IN'),
+            status: latest.status === 'approved' ? 'success' : 'neutral',
+          });
+        }
+      } catch (e) {
+        console.error('Error loading leaves:', e);
+      }
+
+      setRecentActivities(activities.slice(0, 4));
+    } catch (err) {
+      console.error('Error loading activities:', err);
+      setRecentActivities([]);
     }
   };
 
@@ -201,8 +413,9 @@ const Dashboard = () => {
             </div>
             <div className="p-4 sm:p-6">
               <div className="space-y-3">
-                {upcomingEvents.map((event) => (
-                  <div
+                {payrollNotifications.length > 0 ? (
+                  payrollNotifications.map((event) => (
+                    <div
                     key={event.id}
                     className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-200 flex items-start justify-between cursor-pointer"
                   >
@@ -215,16 +428,18 @@ const Dashboard = () => {
                         <p className="text-xs text-gray-500 mt-1">{event.date}</p>
                       </div>
                     </div>
-                    <div className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold ${
-                      event.type === 'review' ? 'bg-purple-100 text-purple-700' :
-                      event.type === 'meeting' ? 'bg-teal-100 text-teal-700' :
-                      event.type === 'deadline' ? 'bg-red-100 text-red-700' :
+                    <div className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                      event.type === 'pending' ? 'bg-amber-100 text-amber-700' :
+                      event.type === 'failed' ? 'bg-red-100 text-red-700' :
                       'bg-green-100 text-green-700'
                     }`}>
-                      {event.type}
+                      ₹{Number(event.amount || 0).toLocaleString('en-IN')}
                     </div>
                   </div>
-                ))}
+                ))
+                ) : (
+                  <div className="text-sm text-gray-500">No payroll notifications yet</div>
+                )}
               </div>
             </div>
           </div>

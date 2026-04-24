@@ -20,20 +20,49 @@ export default function LeaveManagement() {
     loadLeaveRequests();
   }, []);
 
+  const formatLeaveType = (leaveType) => {
+    const type = (leaveType || '').toLowerCase();
+    const typeMap = {
+      sick: 'SICK',
+      casual: 'CASUAL',
+      earned: 'ANNUAL',
+      maternity: 'MATERNITY',
+      paternity: 'PATERNITY',
+      unpaid: 'UNPAID',
+    };
+
+    return typeMap[type] || (leaveType || 'N/A').toUpperCase();
+  };
+
   const loadLeaveRequests = async () => {
     try {
       setIsLoading(true);
       const response = await adminLeaveService.getAllLeaves();
-      
-      if (response && response.leaves) {
-        setLeaveRequests(response.leaves);
-        // Calculate stats
-        const total = response.leaves.length;
-        const pending = response.leaves.filter(l => l.status === 'PENDING').length;
-        const approved = response.leaves.filter(l => l.status === 'APPROVED').length;
-        const rejected = response.leaves.filter(l => l.status === 'REJECTED').length;
-        setStats({ total, pending, approved, rejected });
-      }
+
+      const leavesData =
+        response?.data?.leaves ||
+        response?.leaves ||
+        (Array.isArray(response?.data) ? response.data : null) ||
+        (Array.isArray(response) ? response : []);
+
+      const normalizedLeaves = Array.isArray(leavesData)
+        ? leavesData.map((leave) => ({
+            ...leave,
+            employeeName: leave.employeeName || leave.employee?.name || leave.employee?.email || 'Unknown',
+            leaveType: formatLeaveType(leave.leaveType),
+            status: (leave.status || 'PENDING').toUpperCase(),
+          }))
+        : [];
+
+      setLeaveRequests(normalizedLeaves);
+
+      // Calculate stats on normalized data
+      const total = normalizedLeaves.length;
+      const pending = normalizedLeaves.filter((l) => l.status === 'PENDING').length;
+      const approved = normalizedLeaves.filter((l) => l.status === 'APPROVED').length;
+      const rejected = normalizedLeaves.filter((l) => l.status === 'REJECTED').length;
+      setStats({ total, pending, approved, rejected });
+
       setError('');
     } catch (err) {
       const errorMsg = err.message || 'Failed to load leave requests';
@@ -95,7 +124,7 @@ export default function LeaveManagement() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-4 sm:px-6 lg:px-8 py-6">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 px-4 sm:px-6 lg:px-8 py-6">
       {/* Loading State */}
       {isLoading && (
         <div className="flex items-center justify-center py-12">
@@ -160,7 +189,7 @@ export default function LeaveManagement() {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-8">
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <div className="flex items-center border border-gray-300 rounded-lg px-4 flex-1 h-11 hover:border-indigo-400 hover:bg-gray-50 transition min-w-0">
-            <Search size={18} className="text-gray-400 flex-shrink-0" />
+            <Search size={18} className="text-gray-400 shrink-0" />
             <input
               type="text"
               placeholder="Search leaves..."
@@ -210,7 +239,7 @@ export default function LeaveManagement() {
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-700">
-                  {formatDate(leave.startDate)} - {formatDate(leave.endDate)}, {new Date(leave.endDate).getFullYear()}
+                  {formatDate(leave.startDate)} - {formatDate(leave.endDate)}{leave.endDate ? `, ${new Date(leave.endDate).getFullYear()}` : ''}
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-700">{leave.reason}</td>
                 <td className="px-6 py-4">

@@ -1,5 +1,6 @@
 const Attendance = require("../models/Attendance");
 const { getTodayRange, calculateWorkingHours } = require("../utils/helpers");
+const { getIO } = require("../utils/socketEmitter");
 
 class AttendanceService {
   // Get attendance with filters
@@ -57,6 +58,16 @@ class AttendanceService {
       await attendance.save();
     }
 
+    const io = getIO();
+    if (io) {
+      io.emit("attendance:marked", {
+        employeeId,
+        attendanceId: attendance._id,
+        action: "check-in",
+        timestamp: new Date(),
+      });
+    }
+
     return attendance;
   }
 
@@ -89,6 +100,17 @@ class AttendanceService {
     attendance.workingHours = workingHours;
 
     await attendance.save();
+
+    const io = getIO();
+    if (io) {
+      io.emit("attendance:marked", {
+        employeeId,
+        attendanceId: attendance._id,
+        action: "check-out",
+        timestamp: new Date(),
+      });
+    }
+
     return attendance;
   }
 

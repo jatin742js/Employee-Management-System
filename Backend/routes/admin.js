@@ -25,6 +25,7 @@ router.post(
 router.put("/employees/:id", verifyToken, adminOnly, adminController.updateEmployee);
 router.put("/employees/:id/deactivate", verifyToken, adminOnly, adminController.deactivateEmployee);
 router.put("/employees/:id/activate", verifyToken, adminOnly, adminController.activateEmployee);
+router.delete("/employees/:id", verifyToken, adminOnly, adminController.deleteEmployee);
 
 // ============ ATTENDANCE MANAGEMENT ============
 router.get("/attendance", verifyToken, adminOnly, adminController.getAttendance);
@@ -62,5 +63,12 @@ router.put("/payroll/:id/status", verifyToken, adminOnly, adminController.update
 
 // ============ DASHBOARD ============
 router.get("/dashboard/stats", verifyToken, adminOnly, adminController.getDashboardStats);
+
+// ============ NOTIFICATIONS ============
+router.get("/notifications", verifyToken, adminOnly, adminController.getNotifications);
+router.get("/notifications/unread/count", verifyToken, adminOnly, adminController.getUnreadCount);
+router.put("/notifications/:id/read", verifyToken, adminOnly, adminController.markNotificationAsRead);
+router.put("/notifications/read-all", verifyToken, adminOnly, adminController.markAllNotificationsAsRead);
+router.delete("/notifications/:id", verifyToken, adminOnly, adminController.deleteNotification);
 
 module.exports = router;
