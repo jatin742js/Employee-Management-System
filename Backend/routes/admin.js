@@ -66,6 +66,17 @@ router.get("/dashboard/stats", verifyToken, adminOnly, adminController.getDashbo
 
 // ============ NOTIFICATIONS ============
 router.get("/notifications", verifyToken, adminOnly, adminController.getNotifications);
+router.post(
+  "/notifications/send",
+  verifyToken,
+  adminOnly,
+  [
+    body("employeeId").notEmpty().withMessage("Employee ID is required"),
+    body("title").notEmpty().withMessage("Title is required"),
+    body("message").notEmpty().withMessage("Message is required"),
+  ],
+  adminController.sendNotification
+);
 router.get("/notifications/unread/count", verifyToken, adminOnly, adminController.getUnreadCount);
 router.put("/notifications/:id/read", verifyToken, adminOnly, adminController.markNotificationAsRead);
 router.put("/notifications/read-all", verifyToken, adminOnly, adminController.markAllNotificationsAsRead);

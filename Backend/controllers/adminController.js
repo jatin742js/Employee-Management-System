@@ -5,6 +5,7 @@ const PayrollService = require("../services/payrollService");
 const NotificationService = require("../services/notificationService");
 const { successResponse, errorResponse } = require("../utils/responseUtils");
 const { asyncHandler } = require("../utils/errorHandler");
+const { emitToAdmin, emitToEmployee } = require("../utils/socketEmitter");
 
 // ============ EMPLOYEE MANAGEMENT ============
 
@@ -213,11 +214,13 @@ exports.updatePayrollStatus = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 exports.getDashboardStats = asyncHandler(async (req, res) => {
   const totalEmployees = await EmployeeService.getTotalEmployeesCount();
+  const departmentsCount = await EmployeeService.getDepartmentsCount();
   const todayAttendance = await AttendanceService.getTodayAttendanceCount();
   const pendingLeaves = await LeaveService.getPendingLeavesCount();
 
   successResponse(res, 200, "Dashboard stats retrieved successfully", {
     totalEmployees,
+    departmentsCount,
     todayAttendance,
     pendingLeaves,
   });
@@ -281,4 +284,39 @@ exports.deleteNotification = asyncHandler(async (req, res) => {
   const result = await NotificationService.deleteNotification(req.params.id);
 
   successResponse(res, 200, "Notification deleted successfully", result);
+});
+
+// @route   POST /api/admin/notifications/send
+// @desc    Send notification to a specific employee
+// @access  Private/Admin
+exports.sendNotification = asyncHandler(async (req, res) => {
+  const { employeeId, title, message } = req.body;
+
+  const notification = await NotificationService.createNotification({
+    admin: req.user.id,
+    employee: employeeId,
+    type: "general",
+    title,
+    message,
+    description: "",
+  });
+
+  emitToEmployee(String(employeeId), "notification:received", {
+    _id: notification._id,
+    type: notification.type,
+    title: notification.title,
+    message: notification.message,
+    createdAt: notification.createdAt,
+  });
+
+  emitToAdmin(String(req.user.id), "notification:sent", {
+    _id: notification._id,
+    employeeId,
+    type: notification.type,
+    title: notification.title,
+    message: notification.message,
+    createdAt: notification.createdAt,
+  });
+
+  successResponse(res, 201, "Notification sent successfully", notification);
 });

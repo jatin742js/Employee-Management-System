@@ -61,10 +61,10 @@ class PayrollService {
         await Admin.findOne();
       
       if (admin) {
-        const [monthPart, yearPart] = month.split('-');
+        const [yearPart, monthPart] = month.split('-');
         const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 
                           'July', 'August', 'September', 'October', 'November', 'December'];
-        const monthName = monthNames[parseInt(monthPart)] || 'Unknown';
+        const monthName = monthNames[parseInt(monthPart, 10)] || 'Unknown';
 
         await NotificationService.createNotification({
           admin: admin._id,

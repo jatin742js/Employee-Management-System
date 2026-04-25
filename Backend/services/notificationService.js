@@ -31,6 +31,17 @@ class NotificationService {
     return count;
   }
 
+  // Get employee notifications
+  static async getEmployeeNotifications(employeeId, filters = {}) {
+    const query = { employee: employeeId, ...filters };
+    const notifications = await Notification.find(query)
+      .populate("admin", "name email")
+      .populate("payroll", "month baseSalary netSalary paymentStatus")
+      .sort({ createdAt: -1 });
+
+    return notifications;
+  }
+
   // Get unread notifications
   static async getUnreadNotifications(adminId) {
     const notifications = await Notification.find({

@@ -11,7 +11,7 @@ export default function LeaveManagement() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { socket } = useSocket();
   const [formData, setFormData] = useState({
-    leaveType: "sick",
+    leaveType: "Sick Leave",
     fromDate: "",
     toDate: "",
     reason: "",
@@ -20,11 +20,6 @@ export default function LeaveManagement() {
   const sickLeaveCount = leaveRequests.filter((leave) => leave.type === 'SICK').length;
   const casualLeaveCount = leaveRequests.filter((leave) => leave.type === 'CASUAL').length;
   const annualLeaveCount = leaveRequests.filter((leave) => leave.type === 'ANNUAL').length;
-
-  const getLeaveTypeLabel = (leaveType) => {
-    if (leaveType === 'earned') return 'ANNUAL';
-    return (leaveType || 'leave').toUpperCase();
-  };
 
   useEffect(() => {
     loadLeaves();
@@ -43,7 +38,7 @@ export default function LeaveManagement() {
       if (Array.isArray(data)) {
         const formattedLeaves = data.map((leave) => ({
           id: leave._id || leave.id,
-          type: getLeaveTypeLabel(leave.leaveType),
+          type: leave.leaveType?.toUpperCase() || 'LEAVE',
           dates: `${new Date(leave.startDate).toLocaleDateString('en-IN')} - ${new Date(leave.endDate).toLocaleDateString('en-IN')}`,
           reason: leave.reason || '',
           status: leave.status?.toUpperCase() || 'PENDING',
@@ -124,7 +119,7 @@ export default function LeaveManagement() {
     try {
       setIsSubmitting(true);
       const response = await employeeLeaveService.requestLeave({
-        leaveType: formData.leaveType,
+        leaveType: formData.leaveType.toLowerCase().split(' ')[0],
         startDate: formData.fromDate,
         endDate: formData.toDate,
         reason: formData.reason,
@@ -133,7 +128,7 @@ export default function LeaveManagement() {
 
       const newLeave = {
         id: response.data?._id || response._id || leaveRequests.length + 1,
-        type: getLeaveTypeLabel(formData.leaveType),
+        type: formData.leaveType.split(" ")[0].toUpperCase(),
         dates: `${formData.fromDate} - ${formData.toDate}`,
         reason: formData.reason,
         status: "PENDING",
@@ -142,7 +137,7 @@ export default function LeaveManagement() {
       setLeaveRequests([newLeave, ...leaveRequests]);
       setShowModal(false);
       setFormData({
-        leaveType: "sick",
+        leaveType: "Sick Leave",
         fromDate: "",
         toDate: "",
         reason: "",
@@ -333,9 +328,9 @@ export default function LeaveManagement() {
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                 >
-                  <option value="sick">Sick Leave</option>
-                  <option value="casual">Casual Leave</option>
-                  <option value="earned">Annual Leave</option>
+                  <option>Sick Leave</option>
+                  <option>Casual Leave</option>
+                  <option>Annual Leave</option>
                 </select>
               </div>
 

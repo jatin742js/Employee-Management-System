@@ -19,16 +19,20 @@ const getIO = () => {
 // Emit event to specific admin
 const emitToAdmin = (adminId, event, data) => {
   if (io) {
-    io.to(`admin:${adminId}`).emit(event, data);
-    io.to(`admin:dashboard:${adminId}`).emit(event, data);
+    io
+      .to(`admin:${adminId}`)
+      .to(`admin:dashboard:${adminId}`)
+      .emit(event, data);
   }
 };
 
 // Emit event to specific employee
 const emitToEmployee = (employeeId, event, data) => {
   if (io) {
-    io.to(`employee:${employeeId}`).emit(event, data);
-    io.to(`employee:dashboard:${employeeId}`).emit(event, data);
+    io
+      .to(`employee:${employeeId}`)
+      .to(`employee:dashboard:${employeeId}`)
+      .emit(event, data);
   }
 };
 

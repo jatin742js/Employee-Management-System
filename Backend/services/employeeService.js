@@ -250,6 +250,16 @@ class EmployeeService {
   static async getTotalEmployeesCount() {
     return await Employee.countDocuments({ isActive: true });
   }
+
+  // Get count of unique active departments
+  static async getDepartmentsCount() {
+    const departments = await Employee.distinct("department", {
+      isActive: true,
+      department: { $exists: true, $nin: [null, ""] },
+    });
+
+    return departments.length;
+  }
 }
 
 module.exports = EmployeeService;

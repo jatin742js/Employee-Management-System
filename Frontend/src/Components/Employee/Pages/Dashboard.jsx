@@ -55,7 +55,8 @@ const Dashboard = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [payrollNotifications, setPayrollNotifications] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [selectedNotification, setSelectedNotification] = useState(null);
   const [recentActivities, setRecentActivities] = useState([]);
   const { socket } = useSocket();
 
@@ -66,10 +67,38 @@ const Dashboard = () => {
     return `${type.charAt(0).toUpperCase()}${type.slice(1)} Leave`;
   };
 
+  const formatDashboardNotification = (item) => {
+    if (!item) return null;
+
+    const createdAt = item.createdAt || item.timestamp || new Date();
+    const amountRaw =
+      item.amount ??
+      item.netSalary ??
+      item.baseSalary ??
+      item?.data?.netSalary ??
+      item?.data?.baseSalary;
+    const parsedAmount = Number(amountRaw);
+    const amount = Number.isFinite(parsedAmount) ? parsedAmount : null;
+
+    return {
+      id: item._id || item.id || item.payrollId || `${Date.now()}-${Math.random()}`,
+      title: item.title || item.message || 'Notification',
+      message: item.message || '',
+      date: new Date(createdAt).toLocaleDateString('en-IN'),
+      type: (item.type || item.paymentStatus || item?.data?.paymentStatus || 'general').toLowerCase(),
+      amount,
+    };
+  };
+
+  const isAdminNotification = (item) => {
+    const type = (item?.type || item?.paymentStatus || item?.data?.paymentStatus || '').toLowerCase();
+    return type === 'general';
+  };
+
   const formatPayrollNotification = (payroll) => {
     if (!payroll) return null;
 
-    const amount = payroll.netSalary ?? payroll.baseSalary ?? 0;
+    const amount = Number(payroll.netSalary ?? payroll.baseSalary ?? 0);
     const monthLabel = payroll.month
       ? new Date(`${payroll.month}-01`).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
       : 'Current Month';
@@ -77,18 +106,29 @@ const Dashboard = () => {
     return {
       id: payroll._id || payroll.payrollId || `${Date.now()}-${Math.random()}`,
       title: payroll.message || `Payslip available for ${monthLabel}`,
+      message: payroll.message || `Payslip available for ${monthLabel}`,
       date: payroll.createdAt
         ? new Date(payroll.createdAt).toLocaleDateString('en-IN')
         : new Date().toLocaleDateString('en-IN'),
       type: (payroll.paymentStatus || 'processed').toLowerCase(),
       amount,
+      openable: false,
     };
+  };
+
+  const handleOpenNotification = (notification) => {
+    if (notification?.openable === false) return;
+    setSelectedNotification(notification);
+  };
+
+  const handleCloseNotification = () => {
+    setSelectedNotification(null);
   };
 
   useEffect(() => {
     const loadAll = async () => {
       await loadDashboardData();
-      await loadPayrollNotifications();
+      await loadNotifications();
       await loadRecentActivities();
     };
     loadAll();
@@ -103,29 +143,30 @@ const Dashboard = () => {
       loadRecentActivities();
     };
 
+    const refreshNotifications = () => {
+      loadNotifications();
+    };
+
     socket.on('payroll:notified', (data) => {
       console.log('Payroll notification received:', data);
-      const notification = formatPayrollNotification(data);
-      if (notification) {
-        setPayrollNotifications((prev) => [notification, ...prev].slice(0, 10));
-      }
-      refreshDashboardCards();
+      refreshNotifications();
     });
 
     socket.on('payroll:updated', (data) => {
       console.log('Payroll updated notification received:', data);
-      const notification = formatPayrollNotification(data);
-      if (notification) {
-        setPayrollNotifications((prev) => [notification, ...prev].slice(0, 10));
-      }
-      refreshDashboardCards();
+      refreshNotifications();
     });
 
     socket.on('payroll:statusUpdated', (data) => {
       console.log('Payroll status updated notification received:', data);
-      const notification = formatPayrollNotification(data);
+      refreshNotifications();
+    });
+
+    socket.on('notification:received', (data) => {
+      console.log('Admin notification received:', data);
+      const notification = formatDashboardNotification(data);
       if (notification) {
-        setPayrollNotifications((prev) => [notification, ...prev].slice(0, 10));
+        setNotifications((prev) => [notification, ...prev].slice(0, 10));
       }
       refreshDashboardCards();
     });
@@ -154,6 +195,7 @@ const Dashboard = () => {
       socket.off('payroll:notified');
       socket.off('payroll:updated');
       socket.off('payroll:statusUpdated');
+      socket.off('notification:received');
       socket.off('attendance:marked');
       socket.off('leave:approved');
       socket.off('leave:rejected');
@@ -264,27 +306,39 @@ const Dashboard = () => {
     }
   };
 
-  // Load payroll notifications from latest payroll records
-  const loadPayrollNotifications = async () => {
+  // Load notifications for employee dashboard
+  const loadNotifications = async () => {
     try {
-      const response = await employeePayrollService.getMyPayroll();
-      const payrollList =
-        response?.data?.payroll ||
-        response?.payroll ||
-        (Array.isArray(response?.data) ? response.data : null) ||
-        (Array.isArray(response) ? response : []);
+      const [notificationResponse, payrollResponse] = await Promise.all([
+        employeeDashboardService.getMyNotifications({ limit: 6 }),
+        employeePayrollService.getMyPayroll(),
+      ]);
 
-      const notifications = Array.isArray(payrollList)
-        ? payrollList
-            .map((payroll) => formatPayrollNotification(payroll))
+      const notificationList =
+        notificationResponse?.data?.notifications ||
+        notificationResponse?.notifications ||
+        [];
+
+      const payrollList =
+        payrollResponse?.data?.payroll ||
+        payrollResponse?.payroll ||
+        [];
+
+      const adminNotifications = Array.isArray(notificationList)
+        ? notificationList
+            .filter(isAdminNotification)
+            .map((item) => ({ ...formatDashboardNotification(item), openable: true }))
             .filter(Boolean)
-            .slice(0, 6)
         : [];
 
-      setPayrollNotifications(notifications);
+      const payrollNotifications = Array.isArray(payrollList)
+        ? payrollList.map((item) => formatPayrollNotification(item)).filter(Boolean)
+        : [];
+
+      setNotifications([...adminNotifications, ...payrollNotifications].slice(0, 6));
     } catch (err) {
-      console.error('Error loading payroll notifications:', err);
-      setPayrollNotifications([]);
+      console.error('Error loading notifications:', err);
+      setNotifications([]);
     }
   };
 
@@ -413,32 +467,39 @@ const Dashboard = () => {
             </div>
             <div className="p-4 sm:p-6">
               <div className="space-y-3">
-                {payrollNotifications.length > 0 ? (
-                  payrollNotifications.map((event) => (
+                {notifications.length > 0 ? (
+                  notifications.map((event) => (
                     <div
-                    key={event.id}
-                    className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-200 flex items-start justify-between cursor-pointer"
-                  >
-                    <div className="flex items-start gap-3 flex-1">
-                      <div className="mt-0.5">
-                        <div className="w-3 h-3 rounded-full bg-teal-500"></div>
+                      key={event.id}
+                      onClick={() => handleOpenNotification(event)}
+                      className={`p-4 border border-gray-200 rounded-lg transition-all duration-200 flex items-start justify-between ${event.openable === false ? 'cursor-default bg-gray-50' : 'cursor-pointer hover:bg-gray-50'}`}
+                    >
+                      <div className="flex items-start gap-3 flex-1">
+                        <div className="mt-0.5">
+                          <div className="w-3 h-3 rounded-full bg-teal-500"></div>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">{event.title}</p>
+                          <p className="text-xs text-gray-500 mt-1">{event.date}</p>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">{event.title}</p>
-                        <p className="text-xs text-gray-500 mt-1">{event.date}</p>
-                      </div>
+                      {event.amount !== null ? (
+                        <div className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                          event.type === 'pending' ? 'bg-amber-100 text-amber-700' :
+                          event.type === 'failed' ? 'bg-red-100 text-red-700' :
+                          'bg-green-100 text-green-700'
+                        }`}>
+                          ₹{Number(event.amount || 0).toLocaleString('en-IN')}
+                        </div>
+                      ) : (
+                        <div className="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                          {event.openable === false ? 'Payslip' : 'Message'}
+                        </div>
+                      )}
                     </div>
-                    <div className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold ${
-                      event.type === 'pending' ? 'bg-amber-100 text-amber-700' :
-                      event.type === 'failed' ? 'bg-red-100 text-red-700' :
-                      'bg-green-100 text-green-700'
-                    }`}>
-                      ₹{Number(event.amount || 0).toLocaleString('en-IN')}
-                    </div>
-                  </div>
-                ))
+                  ))
                 ) : (
-                  <div className="text-sm text-gray-500">No payroll notifications yet</div>
+                  <div className="text-sm text-gray-500">No notifications yet</div>
                 )}
               </div>
             </div>
@@ -466,12 +527,99 @@ const Dashboard = () => {
                         <p className="text-xs text-gray-500 mt-0.5">{activity.time}</p>
                       </div>
                     </div>
+
                   </div>
                 ))}
               </div>
             </div>
           </div>
         </div>
+
+        {/* Notification Detail Modal */}
+        {selectedNotification && (
+          <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+            <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
+              <div className="bg-linear-to-r from-teal-600 via-cyan-600 to-sky-600 px-5 py-5 text-white">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20">
+                      <Bell className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-100/90">
+                        Notification Details
+                      </p>
+                      <h3 className="mt-1 truncate text-lg font-bold leading-tight">
+                        {selectedNotification.title}
+                      </h3>
+                      <p className="mt-1 text-sm text-cyan-50/90">
+                        {selectedNotification.openable === false ? 'Payslip information' : 'Admin message'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* <button
+                    onClick={handleCloseNotification}
+                    className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/20"
+                  >
+                    Close
+                  </button> */}
+                </div>
+              </div>
+
+              <div className="p-5 sm:p-6">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Date</p>
+                    <p className="mt-1 text-sm font-medium text-gray-900">{selectedNotification.date}</p>
+                  </div>
+
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Category</p>
+                    <p className="mt-1 inline-flex rounded-full bg-cyan-100 px-2.5 py-1 text-xs font-semibold text-cyan-700 capitalize">
+                      {selectedNotification.openable === false ? 'Payslip' : 'Message'}
+                    </p>
+                  </div>
+
+                  {/* <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Visibility</p>
+                    <p className="mt-1 inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                      {selectedNotification.openable === false ? 'View only' : 'Openable'}
+                    </p>
+                  </div> */}
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Message</p>
+                  <p className="mt-2 whitespace-pre-line text-sm leading-6 text-gray-700">
+                    {selectedNotification.message || 'No additional message'}
+                  </p>
+                </div>
+
+                {selectedNotification.amount !== null && (
+                  <div className="mt-4 flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Amount</p>
+                      <p className="mt-1 text-sm text-emerald-900">Financial summary linked to this item</p>
+                    </div>
+                    <p className="text-lg font-bold text-emerald-700">
+                      ₹{Number(selectedNotification.amount || 0).toLocaleString('en-IN')}
+                    </p>
+                  </div>
+                )}
+
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={handleCloseNotification}
+                    className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800"
+                  >
+                    Close Panel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Announcements */}
         {/* <div className="mt-8 bg-teal-50 border border-teal-200 rounded-lg p-4">

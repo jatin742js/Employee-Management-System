@@ -11,6 +11,16 @@ const employeeDashboardService = {
       throw error.response?.data || error;
     }
   },
+
+  // Get employee notifications
+  getMyNotifications: async (params = {}) => {
+    try {
+      const response = await api.get('/employee/notifications', { params });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
 };
 
 export default employeeDashboardService;

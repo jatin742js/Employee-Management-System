@@ -60,6 +60,16 @@ const adminNotificationService = {
       throw error.response?.data || error;
     }
   },
+
+  // Send notification to employee
+  sendNotification: async (payload) => {
+    try {
+      const response = await api.post('/admin/notifications/send', payload);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
 };
 
 export default adminNotificationService;

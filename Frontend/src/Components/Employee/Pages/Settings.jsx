@@ -467,7 +467,7 @@ export default function EmployeeSettings() {
         {/* Bento-style card */}
         <div className="bg-white rounded-lg sm:rounded-2xl shadow-md hover:shadow-lg overflow-hidden border border-gray-200 transition-all duration-200">
           {/* Tabs Header */}
-          <div className="flex border-b border-gray-200">
+          {/* <div className="flex border-b border-gray-200">
             <button
               onClick={() => setActiveTab('profile')}
               className={`flex-1 px-4 sm:px-6 py-4 sm:py-5 font-medium text-sm sm:text-base transition-colors border-b-2 ${
@@ -478,17 +478,7 @@ export default function EmployeeSettings() {
             >
               Profile Settings
             </button>
-            <button
-              onClick={() => setActiveTab('password')}
-              className={`flex-1 px-4 sm:px-6 py-4 sm:py-5 font-medium text-sm sm:text-base transition-colors border-b-2 ${
-                activeTab === 'password'
-                  ? 'text-teal-600 border-b-teal-600 bg-teal-50/50'
-                  : 'text-gray-600 border-b-transparent hover:text-gray-900'
-              }`}
-            >
-              Change Password
-            </button>
-          </div>
+          </div> */}
 
           {/* Content */}
           <div className="p-4 sm:p-6">

@@ -24,6 +24,7 @@ const AdminDashboard = () => {
   });
   const [stats, setStats] = useState({
     totalEmployees: 0,
+    departmentsCount: 0,
     presentToday: 0,
     onLeave: 0,
     pendingRequests: 0,
@@ -58,8 +59,8 @@ const AdminDashboard = () => {
     // Listen for employee creation
     socket.on('employee:created', (data) => {
       console.log('Employee created event received:', data);
-      // Update employee count
-      setStats(prev => ({ ...prev, totalEmployees: prev.totalEmployees + 1 }));
+      // Refetch stats so dependent cards like departments stay accurate.
+      loadDashboardData();
       // Show notification toast or alert
       console.log(`New employee: ${data.name}`);
     });
@@ -67,6 +68,7 @@ const AdminDashboard = () => {
     // Listen for employee updates
     socket.on('employee:updated', (data) => {
       console.log('Employee updated event received:', data);
+      loadDashboardData();
     });
 
     // Listen for attendance changes and refresh dashboard stats.
@@ -75,11 +77,17 @@ const AdminDashboard = () => {
       loadDashboardData();
     });
 
+    socket.on('notification:sent', (data) => {
+      console.log('Notification sent event received:', data);
+      refreshNotifications();
+    });
+
     return () => {
       socket.off('payroll:created');
       socket.off('employee:created');
       socket.off('employee:updated');
       socket.off('attendance:marked');
+      socket.off('notification:sent');
     };
   }, [socket]);
 
@@ -116,6 +124,7 @@ const AdminDashboard = () => {
       if (statsResponse.data) {
         setStats({
           totalEmployees: statsResponse.data.totalEmployees || 0,
+          departmentsCount: statsResponse.data.departmentsCount || 0,
           presentToday: statsResponse.data.todayAttendance || statsResponse.data.presentToday || 0,
           onLeave: statsResponse.data.onLeave || 0,
           pendingRequests: statsResponse.data.pendingLeaves || 0,
@@ -268,7 +277,7 @@ const AdminDashboard = () => {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium">Departments</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">10</p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.departmentsCount}</p>
               </div>
               <div className="text-indigo-500">
                 <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -18,7 +18,7 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["payroll_sent", "payroll_updated", "payment_processed", "payment_completed"],
+      enum: ["payroll_sent", "payroll_updated", "payment_processed", "payment_completed", "general"],
       default: "payroll_sent",
     },
     title: {
@@ -55,5 +55,6 @@ const notificationSchema = new mongoose.Schema(
 // Index for faster queries
 notificationSchema.index({ admin: 1, createdAt: -1 });
 notificationSchema.index({ admin: 1, isRead: 1 });
+notificationSchema.index({ employee: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Notification", notificationSchema);

@@ -33,5 +33,6 @@ router.get("/payroll/:id", verifyToken, employeeOnly, employeeController.getPayr
 
 // ============ DASHBOARD ============
 router.get("/dashboard/stats", verifyToken, employeeOnly, employeeController.getDashboardStats);
+router.get("/notifications", verifyToken, employeeOnly, employeeController.getMyNotifications);
 
 module.exports = router;

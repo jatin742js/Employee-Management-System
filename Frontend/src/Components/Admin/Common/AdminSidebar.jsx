@@ -27,6 +27,43 @@ const AdminSidebar = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   // State for profile dropdown
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [adminInfo, setAdminInfo] = useState(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('adminUser') || '{}');
+      return {
+        name: stored?.name || 'Admin User',
+        email: stored?.email || 'admin@company.com',
+        organization: stored?.organization || 'Organization',
+        role: stored?.role || 'Administrator',
+        department: stored?.department || 'Administration',
+      };
+    } catch {
+      return {
+        name: 'Admin User',
+        email: 'admin@company.com',
+        organization: 'Organization',
+        role: 'Administrator',
+        department: 'Administration',
+      };
+    }
+  });
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('adminUser') || '{}');
+      if (stored && Object.keys(stored).length) {
+        setAdminInfo({
+          name: stored.name || 'Admin User',
+          email: stored.email || 'admin@company.com',
+          organization: stored.organization || 'Organization',
+          role: stored.role || 'Administrator',
+          department: stored.department || 'Administration',
+        });
+      }
+    } catch {
+      // Ignore localStorage parsing issues
+    }
+  }, []);
 
   // Toggle dark mode
   const toggleDarkMode = () => {
@@ -92,9 +129,14 @@ const AdminSidebar = () => {
     <>
       {/* Mobile Top Bar with Profile Dropdown */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center space-x-2">
-          <Briefcase className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
-          <span className="text-lg font-bold text-gray-900 dark:text-white">AdminHub</span>
+        <div className="flex items-center space-x-3 min-w-0">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-indigo-600 via-violet-600 to-sky-600 shadow-md">
+            <Briefcase className="h-5 w-5 text-white" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-indigo-600 dark:text-indigo-300">Admin Workspace</p>
+            <span className="block truncate text-sm font-bold text-gray-900 dark:text-white">AdminHub</span>
+          </div>
         </div>
         <div className="relative">
           <button
@@ -167,19 +209,52 @@ const AdminSidebar = () => {
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col h-full w-64 bg-white dark:bg-gray-800 shadow-lg border-r border-gray-200 dark:border-gray-700">
         {/* Logo */}
-        <div className="p-5 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-800">
-          <div className="flex items-center space-x-2">
-            <Briefcase className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
-            <span className="text-xl font-bold text-gray-900 dark:text-white">AdminHub</span>
+        <div className="p-5 border-b border-gray-200 dark:border-gray-700 bg-linear-to-br from-indigo-50 via-white to-sky-50 dark:from-gray-800 dark:via-gray-800 dark:to-gray-900">
+          <div className="rounded-2xl border border-gray-200/80 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 px-4 py-4 shadow-sm backdrop-blur-xs">
+            <div className="flex items-center space-x-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-linear-to-br from-indigo-600 via-violet-600 to-sky-600 shadow-md">
+                <Briefcase className="h-5 w-5 text-white" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-300">Admin Workspace</p>
+                <span className="block text-lg font-bold leading-tight text-gray-900 dark:text-white">AdminHub</span>
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Control panel for operations</p>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Admin Profile Card */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center space-x-3">
-            <UserCircle className="w-10 h-10 text-indigo-600 dark:text-indigo-400" />
-            <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white text-sm">Admin User</h3>
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-linear-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 px-4 py-4 shadow-sm">
+            <div className="flex items-start space-x-3">
+              <div className="relative">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-br from-indigo-600 via-violet-600 to-sky-600 shadow-md ring-4 ring-indigo-100 dark:ring-gray-700">
+                  <UserCircle className="w-7 h-7 text-white" />
+                </div>
+                <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white dark:border-gray-800 bg-emerald-500"></span>
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate text-sm font-bold text-gray-900 dark:text-white">{adminInfo.name}</h3>
+                <p className="truncate text-xs text-gray-500 dark:text-gray-400">{adminInfo.email}</p>
+
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <span className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-1 text-[11px] font-semibold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                    {adminInfo.role}
+                  </span>
+                  <span className="inline-flex items-center rounded-full bg-sky-100 px-2.5 py-1 text-[11px] font-semibold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
+                    {adminInfo.department}
+                  </span>
+                </div>
+
+                <div className="mt-3 space-y-1 text-xs text-gray-600 dark:text-gray-400">
+                  <div className="flex items-center gap-2">
+                    <Briefcase size={12} className="shrink-0 text-gray-400" />
+                    <span className="truncate">{adminInfo.organization}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -215,7 +290,7 @@ const AdminSidebar = () => {
         <div className="p-4 border-t border-gray-200 dark:border-gray-700">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition font-medium"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-white  bg-red-600 dark:text-red-400 hover:bg-red-500  dark:hover:bg-red-900/20 rounded-lg transition font-medium"
           >
             <LogOut size={18} />
             <span className="text-sm">Logout</span>

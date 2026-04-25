@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import employeeAuthService from '../../../services/employeeAuthService';
+import { useSocket } from '../../../context/SocketContext';
 import {
   LayoutDashboard,
   User,
@@ -32,12 +34,29 @@ import {
 
 const EmployeeSidebar = () => {
   const navigate = useNavigate();
+  const { socket } = useSocket();
   // State for active menu item
   const [activeItem, setActiveItem] = useState('Dashboard');
   // State for dark mode
   const [isDarkMode, setIsDarkMode] = useState(false);
   // State for profile dropdown
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [profileInfo, setProfileInfo] = useState(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('employeeUser') || '{}');
+      return {
+        name: stored?.name || 'Employee',
+        employeeId: stored?.employeeId || 'EMP-NA',
+        photo: stored?.photo || null,
+      };
+    } catch {
+      return {
+        name: 'Employee',
+        employeeId: 'EMP-NA',
+        photo: null,
+      };
+    }
+  });
   // Toggle dark mode
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
@@ -52,6 +71,53 @@ const EmployeeSidebar = () => {
   useEffect(() => {
     // Any additional initialization can go here
   }, []);
+
+  const loadProfileInfo = async () => {
+    try {
+      const response = await employeeAuthService.getEmployeeProfile();
+      const profile = response?.data || response;
+      if (profile) {
+        const nextProfile = {
+          name: profile.name || 'Employee',
+          employeeId: profile.employeeId || 'EMP-NA',
+          photo: profile.photo || null,
+        };
+        setProfileInfo(nextProfile);
+
+        try {
+          const stored = JSON.parse(localStorage.getItem('employeeUser') || '{}');
+          localStorage.setItem('employeeUser', JSON.stringify({
+            ...stored,
+            name: profile.name || stored.name,
+            employeeId: profile.employeeId || stored.employeeId,
+            photo: profile.photo || stored.photo || null,
+          }));
+        } catch {
+          // Ignore localStorage parse issues
+        }
+      }
+    } catch (err) {
+      console.error('Error loading employee profile for sidebar:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadProfileInfo();
+  }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleEmployeeUpdate = () => {
+      loadProfileInfo();
+    };
+
+    socket.on('employee:updated', handleEmployeeUpdate);
+
+    return () => {
+      socket.off('employee:updated', handleEmployeeUpdate);
+    };
+  }, [socket]);
 
   // Menu items with icons and labels
   const menuItems = [
@@ -102,9 +168,24 @@ const EmployeeSidebar = () => {
     <>
       {/* Mobile Top Bar with Profile Dropdown */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-b border-teal-200 dark:border-teal-700 px-4 py-3 flex items-center justify-between shadow-sm">
-        <div>
-          <h3 className="font-semibold text-gray-900 dark:text-white text-sm">John Doe</h3>
-          <p className="text-xs text-gray-600 dark:text-gray-400">EMP-12345</p>
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-full overflow-hidden border border-teal-200 bg-teal-50 shrink-0">
+            {profileInfo.photo ? (
+              <img
+                src={profileInfo.photo}
+                alt={profileInfo.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <UserCircle className="w-7 h-7 text-teal-600" />
+              </div>
+            )}
+          </div>
+          <div className="min-w-0">
+            <h3 className="font-semibold text-gray-900 dark:text-white text-sm truncate">{profileInfo.name}</h3>
+            <p className="text-xs text-gray-600 dark:text-gray-400 truncate">{profileInfo.employeeId}</p>
+          </div>
         </div>
         <button
           onClick={handleLogout}
@@ -165,22 +246,47 @@ const EmployeeSidebar = () => {
 
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col h-full w-64 bg-white dark:bg-gray-800 shadow-lg border-r border-teal-200 dark:border-teal-700">
+        {/* Sidebar Title */}
+        <div className="px-4 py-4 border-b border-teal-200 dark:border-teal-700 bg-white dark:bg-gray-800">
+          <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-linear-to-r from-teal-50 to-cyan-50 dark:from-gray-800 dark:to-gray-800 px-3 py-3 shadow-sm">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-teal-700 dark:text-teal-300">
+              Employee Workspace
+            </p>
+            <h2 className="mt-1 text-base font-bold leading-tight text-gray-900 dark:text-white tracking-wide">
+              EMS Management System
+            </h2>
+            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+              Smart workforce records and operations
+            </p>
+          </div>
+        </div>
+
         {/* Profile Card */}
-        <div className="p-5 border-b border-teal-200 dark:border-teal-700 bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-gray-800 dark:to-gray-800">   
+        <div className="p-5 border-b border-teal-200 dark:border-teal-700 bg-linear-to-br from-teal-50 to-cyan-50 dark:from-gray-800 dark:to-gray-800">   
           <div className="flex items-center space-x-3">
             <div className="relative">
-              <UserCircle className="w-12 h-12 text-teal-600 dark:text-teal-400" />
+              <div className="w-12 h-12 rounded-full overflow-hidden border border-teal-200 bg-teal-50">
+                {profileInfo.photo ? (
+                  <img
+                    src={profileInfo.photo}
+                    alt={profileInfo.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <UserCircle className="w-8 h-8 text-teal-600 dark:text-teal-400" />
+                  </div>
+                )}
+              </div>
               <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-gray-800"></span>
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white text-sm">John Doe</h3>
-              <p className="text-xs text-gray-600 dark:text-gray-400">EMP-12345</p>
-              <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-200 rounded-full">
-                Employee
-              </span>
+              <h3 className="font-semibold text-gray-900 dark:text-white text-sm">{profileInfo.name}</h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400">{profileInfo.employeeId}</p>
+             
             </div>
           </div>
-          <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">     
+          {/* <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">     
             <div className="flex items-center">
               <Briefcase size={12} className="mr-1" />
               <span>Senior Software Engineer</span>
@@ -189,7 +295,7 @@ const EmployeeSidebar = () => {
               <Clock size={12} className="mr-1" />
               <span>Joined: Jan 2023</span>
             </div>
-          </div>
+          </div> */}
         </div>
 
         {/* Date Display */}

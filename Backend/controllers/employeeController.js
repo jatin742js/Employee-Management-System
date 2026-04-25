@@ -2,6 +2,7 @@ const AttendanceService = require("../services/attendanceService");
 const LeaveService = require("../services/leaveService");
 const PayrollService = require("../services/payrollService");
 const EmployeeAuthService = require("../services/employeeAuthService");
+const NotificationService = require("../services/notificationService");
 const { successResponse, errorResponse } = require("../utils/responseUtils");
 const { asyncHandler } = require("../utils/errorHandler");
 const { getCurrentMonth } = require("../utils/helpers");
@@ -182,5 +183,20 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
     pendingLeaves: pendingLeaves.length,
     approvedLeaves: approvedLeaves.length,
     currentPayroll: currentPayroll[0] || null,
+  });
+});
+
+// @route   GET /api/employee/notifications
+// @desc    Get my notifications
+// @access  Private/Employee
+exports.getMyNotifications = asyncHandler(async (req, res) => {
+  const { limit = 10, skip = 0 } = req.query;
+  const notifications = await NotificationService.getEmployeeNotifications(req.user.id);
+  const paginated = notifications.slice(Number(skip), Number(skip) + Number(limit));
+
+  successResponse(res, 200, "Notifications retrieved", {
+    count: paginated.length,
+    total: notifications.length,
+    notifications: paginated,
   });
 });

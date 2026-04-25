@@ -206,13 +206,28 @@ export default function AttendanceDashboard() {
   const presentCount = filteredAttendance.filter(item => item.status === "Present").length;
   const totalDays = filteredAttendance.length;
   const completedRecords = filteredAttendance.filter((item) => item.checkIn !== '-' && item.checkOut !== '-');
+  const attendanceRatePercent = totalDays
+    ? Math.round((presentCount / totalDays) * 100)
+    : 0;
+  const todayProgressPercent = checkOutTime
+    ? 100
+    : checkInTime
+    ? 50
+    : attendanceRatePercent;
+  const todayProgressLabel = checkOutTime
+    ? 'completed'
+    : checkInTime
+    ? 'in progress'
+    : totalDays
+    ? 'attendance rate'
+    : 'no records';
 
   const parseTimeToMinutes = (timeValue) => {
     if (!timeValue || timeValue === '-') return null;
     const value = String(timeValue).trim();
 
-    // 12-hour format e.g. 10:33 AM
-    const meridiemMatch = value.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    // 12-hour format e.g. 10:33 AM or 10:33:12 AM
+    const meridiemMatch = value.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
     if (meridiemMatch) {
       let hour = Number(meridiemMatch[1]);
       const minute = Number(meridiemMatch[2]);
@@ -286,7 +301,7 @@ export default function AttendanceDashboard() {
         {/* Header */}
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-            Good afternoon, {employeeName}!
+           Attendance Management
           </h1>
         </div>
 
@@ -315,12 +330,12 @@ export default function AttendanceDashboard() {
                     fill="none"
                     stroke={checkOutTime ? "#14b8a6" : checkInTime ? "#14b8a6" : "#f59e0b"}
                     strokeWidth="12"
-                    strokeDasharray={`${(checkOutTime ? 100 : checkInTime ? 50 : 67) / 100 * 339.3} 339.3`}
+                    strokeDasharray={`${(todayProgressPercent / 100) * 339.3} 339.3`}
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-2xl font-bold text-gray-900">{checkOutTime ? "100" : checkInTime ? "50" : "67"}%</span>
-                  <span className="text-xs text-gray-500">{checkOutTime ? "completed" : checkInTime ? "in progress" : "in office"}</span>
+                  <span className="text-2xl font-bold text-gray-900">{todayProgressPercent}%</span>
+                  <span className="text-xs text-gray-500">{todayProgressLabel}</span>
                 </div>
               </div>
             </div>

@@ -12,6 +12,19 @@ const PayrollPage = () => {
   const [error, setError] = useState('');
   const { socket } = useSocket();
 
+  const normalizeStatus = (value = '') => {
+    const status = value.toLowerCase();
+    if (status === 'processing') return 'processed';
+    return status;
+  };
+
+  const getStatusLabel = (value = '') => {
+    const normalized = normalizeStatus(value);
+    if (normalized === 'processed') return 'Processing';
+    if (!normalized) return 'Pending';
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  };
+
   const formatMonthYear = (monthValue) => {
     if (!monthValue || !monthValue.includes('-')) {
       const now = new Date();
@@ -91,7 +104,7 @@ const PayrollPage = () => {
           deduction: `₹${Number(payroll.deductions || 0).toLocaleString('en-IN')}`,
           bonus: `₹${Number(payroll.allowances || 0).toLocaleString('en-IN')}`,
           net: `₹${Number(payroll.netSalary || 0).toLocaleString('en-IN')}`,
-          status: (payroll.paymentStatus || payroll.status || 'pending').replace(/^./, (c) => c.toUpperCase()),
+          status: getStatusLabel(payroll.paymentStatus || payroll.status || 'pending'),
         }));
         setPayrollData(formattedPayroll);
       } else {
@@ -111,7 +124,10 @@ const PayrollPage = () => {
     (item) =>
       (selectedMonth === "All" || item.month === selectedMonth) &&
       (selectedYear === "All" || item.year === selectedYear) &&
-      (selectedStatus === "All" || item.status === selectedStatus)
+      (
+        selectedStatus === "All" ||
+        normalizeStatus(item.status) === normalizeStatus(selectedStatus)
+      )
   );
 
   return (
@@ -197,7 +213,7 @@ const PayrollPage = () => {
                   <option>All</option>
                   <option>Paid</option>
                   <option>Pending</option>
-                  <option>Processing</option>
+                  <option>Processed</option>
                 </select>
               </div>
             </div>

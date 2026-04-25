@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Search, Plus, Edit2, Trash2, X, Eye, Bell } from "lucide-react";
+import { Search, Plus, Edit2, Trash2, X, Eye, EyeOff, Bell } from "lucide-react";
 import adminEmployeeService from "../../../services/adminEmployeeService";
+import adminNotificationService from "../../../services/adminNotificationService";
 
 export default function EmployeePage() {
   const [employees, setEmployees] = useState([]);
@@ -399,16 +400,27 @@ export default function EmployeePage() {
     setShowNotificationModal(true);
   };
 
-  const handleSendNotification = () => {
+  const handleSendNotification = async () => {
     if (!notificationMessage.trim()) {
       alert('Please enter a message');
       return;
     }
-    console.log(`Notification sent to ${notificationEmployee.name}: ${notificationMessage}`);
-    alert(`Notification sent to ${notificationEmployee.name}!`);
-    setShowNotificationModal(false);
-    setNotificationEmployee(null);
-    setNotificationMessage("");
+
+    try {
+      await adminNotificationService.sendNotification({
+        employeeId: notificationEmployee.id,
+        title: 'Message from Admin',
+        message: notificationMessage.trim(),
+      });
+
+      alert(`Notification sent to ${notificationEmployee.name}!`);
+      setShowNotificationModal(false);
+      setNotificationEmployee(null);
+      setNotificationMessage("");
+    } catch (err) {
+      const errorMsg = err?.message || err?.data?.message || 'Failed to send notification';
+      alert(`Error: ${errorMsg}`);
+    }
   };
 
   return (
@@ -451,6 +463,7 @@ export default function EmployeePage() {
           onClick={() => {
             setShowAddModal(true);
             setModalMode('add');
+            setShowPassword(false);
             // Generate unique Employee ID - check against existing employees
             const uniqueId = generateUniqueEmployeeId(employees);
             setFormData(prev => ({
@@ -478,9 +491,11 @@ export default function EmployeePage() {
           </div>
 
           <select className="border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 bg-white hover:border-indigo-400 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition min-w-max">
-            <option>All Departments</option>
-            <option>Marketing</option>
-            <option>Engineering</option>
+            <option value="all">All Departments</option>
+              <option value="Engineering">Engineering</option>
+              <option value="Sales">Sales</option>
+              <option value="HR">HR</option>
+              <option value="Marketing">Marketing</option>
           </select>
         </div>
       </div>
@@ -860,23 +875,21 @@ export default function EmployeePage() {
                       </p>
                       <div className="relative flex items-center">
                         <input 
-                          type={modalMode === 'view' && showPassword ? 'text' : 'password'}
+                          type={showPassword ? 'text' : 'password'}
                           name="password"
                           value={formData.password || ''}
                           onChange={handleInputChange}
                           disabled={modalMode === 'view'}
                           placeholder={modalMode === 'add' ? 'Set password (min 6 chars)' : 'Enter new password (optional)'}
-                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed transition"
+                          className="w-full px-4 py-2.5 pr-11 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed transition"
                         />
-                        {modalMode === 'view' && (
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 text-gray-600 hover:text-gray-900 transition"
-                          >
-                            <Eye size={18} />
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 text-gray-600 hover:text-gray-900 transition"
+                        >
+                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
                       </div>
                     </div>
                     <div>
@@ -903,6 +916,7 @@ export default function EmployeePage() {
                   onClick={() => {
                     setShowAddModal(false);
                     setModalMode('add');
+                    setShowPassword(false);
                     setFormData({
                       firstName: "",
                       lastName: "",
