@@ -10,6 +10,7 @@ const PayrollPage = () => {
   const [payrollData, setPayrollData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [downloadingId, setDownloadingId] = useState(null);
   const { socket } = useSocket();
 
   const normalizeStatus = (value = '') => {
@@ -63,26 +64,38 @@ const PayrollPage = () => {
 
   // Listen to real-time payroll updates via Socket.io
   useEffect(() => {
-    if (!socket) return;
+    if (!socket) {
+      console.log('Socket not connected');
+      return;
+    }
+
+    console.log('Setting up Socket.IO listeners for payroll');
+
+    // Listen for payroll created/updated events
+    socket.on('payroll:created', (data) => {
+      console.log('Payroll created via socket:', data);
+      loadPayroll(); // Refresh payroll data
+    });
+
+    socket.on('payroll:updated', (data) => {
+      console.log('Payroll updated via socket:', data);
+      loadPayroll(); // Refresh payroll data
+    });
 
     socket.on('payroll:notified', (data) => {
       console.log('Payroll notification received:', data);
       loadPayroll(); // Refresh payroll data
     });
 
-    socket.on('payroll:updated', (data) => {
-      console.log('Payroll updated:', data);
-      loadPayroll();
-    });
-
     socket.on('payroll:statusUpdated', (data) => {
-      console.log('Payroll status updated:', data);
-      loadPayroll();
+      console.log('Payroll status updated via socket:', data);
+      loadPayroll(); // Refresh payroll data
     });
 
     return () => {
-      socket.off('payroll:notified');
+      socket.off('payroll:created');
       socket.off('payroll:updated');
+      socket.off('payroll:notified');
       socket.off('payroll:statusUpdated');
     };
   }, [socket]);
@@ -91,11 +104,15 @@ const PayrollPage = () => {
     try {
       setIsLoading(true);
       const response = await employeePayrollService.getMyPayroll();
+      console.log('Payroll API Response:', response);
+      
       const data =
         response?.data?.payroll ||
         response?.payroll ||
         (Array.isArray(response?.data) ? response.data : null) ||
         (Array.isArray(response) ? response : []);
+      
+      console.log('Extracted payroll data:', data);
       
       if (Array.isArray(data)) {
         const formattedPayroll = data.map((payroll) => ({
@@ -106,8 +123,10 @@ const PayrollPage = () => {
           net: `₹${Number(payroll.netSalary || 0).toLocaleString('en-IN')}`,
           status: getStatusLabel(payroll.paymentStatus || payroll.status || 'pending'),
         }));
+        console.log('Formatted payroll:', formattedPayroll);
         setPayrollData(formattedPayroll);
       } else {
+        console.log('Data is not an array:', data);
         setPayrollData([]);
       }
       setError('');
@@ -117,6 +136,30 @@ const PayrollPage = () => {
       setPayrollData([]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDownloadPayslip = async (month, year) => {
+    try {
+      setDownloadingId(`${month}-${year}`);
+      const blob = await employeePayrollService.downloadPayslip(month, year);
+      
+      // Create a URL for the blob
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Payslip_${month}_${year}.txt`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      alert('Payslip downloaded successfully!');
+    } catch (err) {
+      console.error('Error downloading payslip:', err);
+      alert(`Failed to download payslip: ${err.message || 'Unknown error'}`);
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -138,6 +181,14 @@ const PayrollPage = () => {
         <div className="mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">Payroll Dashboard</h1>
           <p className="text-gray-600 text-sm">Manage and track your salary payments</p>
+        </div>
+
+        {/* Debug Section */}
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-xs text-blue-700 font-mono">
+            <strong>Debug:</strong> Payroll Records: {payrollData.length} | Filtered: {filteredData.length} | Loading: {isLoading ? 'Yes' : 'No'}
+          </p>
+          {error && <p className="text-xs text-red-700 mt-2">Error: {error}</p>}
         </div>
 
         {/* Main Content Card */}
@@ -251,15 +302,12 @@ const PayrollPage = () => {
                         </td>
                         <td className="py-3 px-4 text-center">
                           <button 
-                            onClick={() => {
-                              const month = selectedMonth;
-                              const year = selectedYear;
-                              alert(`Downloading Payslip_${month}_${year}.pdf...`);
-                            }}
-                            className="inline-flex items-center gap-1.5 bg-teal-500 hover:bg-teal-600 text-white px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 shadow-sm"
+                            onClick={() => handleDownloadPayslip(item.month, item.year)}
+                            disabled={downloadingId === `${item.month}-${item.year}`}
+                            className="inline-flex items-center gap-1.5 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 shadow-sm"
                           >
                             <Download size={14} />
-                            Download
+                            {downloadingId === `${item.month}-${item.year}` ? 'Downloading...' : 'Download'}
                           </button>
                         </td>
                       </tr>

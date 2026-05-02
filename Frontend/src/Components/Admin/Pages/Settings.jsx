@@ -99,6 +99,7 @@ export default function AdminSettings() {
     try {
       const response = await adminAuthService.updateAdminProfile({
         name: profile.fullName,
+        email: profile.email,
         phone: profile.phone,
         department: profile.organization,
       });
@@ -106,9 +107,20 @@ export default function AdminSettings() {
       // Update localStorage with new data
       const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
       adminUser.name = profile.fullName;
+      adminUser.email = profile.email;
       adminUser.phone = profile.phone;
       adminUser.department = profile.organization;
       localStorage.setItem('adminUser', JSON.stringify(adminUser));
+      
+      // Dispatch custom event to update sidebar in real-time
+      window.dispatchEvent(new CustomEvent('adminProfileUpdated', { 
+        detail: { 
+          name: profile.fullName,
+          email: profile.email,
+          phone: profile.phone,
+          department: profile.organization 
+        } 
+      }));
       
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);

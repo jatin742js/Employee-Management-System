@@ -32,6 +32,8 @@ export default function EmployeePage() {
     workEmail: "",
     password: "",
     systemRole: "Employee",
+    officeStartTime: "09:00",
+    officeEndTime: "18:00",
   });
   const [showCredentialsModal, setShowCredentialsModal] = useState(false);
   const [createdEmployeeCredentials, setCreatedEmployeeCredentials] = useState(null);
@@ -81,6 +83,8 @@ export default function EmployeePage() {
           deductions: emp.deductions || 0,
           bio: emp.bio || '',
           employeeId: emp.employeeId || '',
+          officeStartTime: emp.officeStartTime || '09:00',
+          officeEndTime: emp.officeEndTime || '18:00',
         }));
         console.log('Transformed Employees:', transformedEmployees);
         setEmployees(transformedEmployees);
@@ -211,6 +215,8 @@ export default function EmployeePage() {
         gender: formData.gender || '',
         bio: formData.bio || '',
         photo: photo, // Include photo (base64)
+        officeStartTime: formData.officeStartTime,
+        officeEndTime: formData.officeEndTime,
         password: modalMode === 'add'
           ? formData.password
           : (formData.password && formData.password.trim() ? formData.password : undefined),
@@ -242,6 +248,8 @@ export default function EmployeePage() {
             workEmail: "",
             password: "",
             systemRole: "Employee",
+            officeStartTime: "09:00",
+            officeEndTime: "18:00",
           });
           setPhoto(null);
           setSelectedEmployeeId(null);
@@ -276,8 +284,9 @@ export default function EmployeePage() {
           deductions: "",
           workEmail: "",
           password: "",
-          password: "",
           systemRole: "Employee",
+          officeStartTime: "09:00",
+          officeEndTime: "18:00",
         });
         setPhoto(null);
         setSelectedEmployeeId(null);
@@ -320,6 +329,8 @@ export default function EmployeePage() {
         workEmail: employeeData.email || "",
         password: employeeData.plainPassword || "", // Use plainPassword from backend
         systemRole: "Employee",
+        officeStartTime: employeeData.officeStartTime || "09:00",
+        officeEndTime: employeeData.officeEndTime || "18:00",
       });
       setPhoto(employeeData.photo || null);
     } catch (err) {
@@ -360,6 +371,8 @@ export default function EmployeePage() {
         workEmail: employeeData.email || "",
         password: employeeData.plainPassword || "", // Use plainPassword from backend
         systemRole: "Employee",
+        officeStartTime: employeeData.officeStartTime || "09:00",
+        officeEndTime: employeeData.officeEndTime || "18:00",
       });
       setPhoto(employeeData.photo || null);
     } catch (err) {
@@ -459,23 +472,25 @@ export default function EmployeePage() {
           <p className="text-gray-600 mt-2 text-sm sm:text-base">Manage your team members</p>
         </div>
 
-        <button 
-          onClick={() => {
-            setShowAddModal(true);
-            setModalMode('add');
-            setShowPassword(false);
-            // Generate unique Employee ID - check against existing employees
-            const uniqueId = generateUniqueEmployeeId(employees);
-            setFormData(prev => ({
-              ...prev,
-              employeeId: uniqueId,
-              password: ""
-            }));
-          }}
-          className="w-full sm:w-auto inline-flex items-center justify-center sm:justify-start gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition shadow-sm">
-          <Plus size={18} />
-          Add Employee
-        </button>
+        <div className="flex gap-3 w-full sm:w-auto">
+          <button 
+            onClick={() => {
+              setShowAddModal(true);
+              setModalMode('add');
+              setShowPassword(false);
+              // Generate unique Employee ID - check against existing employees
+              const uniqueId = generateUniqueEmployeeId(employees);
+              setFormData(prev => ({
+                ...prev,
+                employeeId: uniqueId,
+                password: ""
+              }));
+            }}
+            className="flex-1 sm:flex-none inline-flex items-center justify-center sm:justify-start gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition shadow-sm">
+            <Plus size={18} />
+            Add Employee
+          </button>
+        </div>
       </div>
 
       {/* Search + Filter */}
@@ -617,6 +632,8 @@ export default function EmployeePage() {
                     workEmail: "",
                     password: "",
                     systemRole: "Employee",
+                    officeStartTime: "09:00",
+                    officeEndTime: "18:00",
                   });
                   setPhoto(null);
                   setSelectedEmployeeId(null);
@@ -844,6 +861,34 @@ export default function EmployeePage() {
                       placeholder="0"
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed transition"
                     />
+                  </div>
+
+                  {/* Office Hours */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Office Start Time</label>
+                      <input 
+                        type="time"
+                        name="officeStartTime"
+                        value={formData.officeStartTime}
+                        onChange={handleInputChange}
+                        disabled={modalMode === 'view'}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed transition"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Default: 09:00 AM</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Office End Time</label>
+                      <input 
+                        type="time"
+                        name="officeEndTime"
+                        value={formData.officeEndTime}
+                        onChange={handleInputChange}
+                        disabled={modalMode === 'view'}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed transition"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Default: 06:00 PM</p>
+                    </div>
                   </div>
                 </div>
               </div>

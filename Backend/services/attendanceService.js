@@ -31,6 +31,7 @@ class AttendanceService {
 
   // Check in employee
   static async checkIn(employeeId) {
+    const Employee = require("../models/Employee");
     const todayRange = getTodayRange();
 
     // Check if already checked in
@@ -43,8 +44,29 @@ class AttendanceService {
       throw new Error("Already checked in today");
     }
 
+    // Get employee's office start time
+    const employee = await Employee.findById(employeeId);
+    if (!employee) {
+      throw new Error("Employee not found");
+    }
+
     const now = new Date();
-    const checkInTime = now.toLocaleTimeString();
+    const checkInTime = now.toLocaleTimeString('en-US', { hour12: false });
+
+    // Check if employee is late
+    const checkInHour = parseInt(checkInTime.split(':')[0]);
+    const checkInMinute = parseInt(checkInTime.split(':')[1]);
+    const officeStartHour = parseInt(employee.officeStartTime.split(':')[0]);
+    const officeStartMinute = parseInt(employee.officeStartTime.split(':')[1]);
+
+    let isLate = false;
+    let lateBy = 0;
+
+    if (checkInHour > officeStartHour || 
+        (checkInHour === officeStartHour && checkInMinute > officeStartMinute)) {
+      isLate = true;
+      lateBy = (checkInHour - officeStartHour) * 60 + (checkInMinute - officeStartMinute);
+    }
 
     if (!attendance) {
       attendance = await Attendance.create({
@@ -52,9 +74,13 @@ class AttendanceService {
         date: new Date(),
         status: "present",
         checkInTime,
+        isLate,
+        lateBy,
       });
     } else {
       attendance.checkInTime = checkInTime;
+      attendance.isLate = isLate;
+      attendance.lateBy = lateBy;
       await attendance.save();
     }
 
@@ -65,6 +91,8 @@ class AttendanceService {
         attendanceId: attendance._id,
         action: "check-in",
         timestamp: new Date(),
+        isLate,
+        lateBy,
       });
     }
 

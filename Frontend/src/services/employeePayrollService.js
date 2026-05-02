@@ -22,6 +22,23 @@ const employeePayrollService = {
       throw error.response?.data || error;
     }
   },
+
+  // Download payslip PDF
+  downloadPayslip: async (month, year) => {
+    try {
+      console.log(`Downloading payslip for ${month}/${year} from /employee/payroll/download`);
+      const response = await api.get(`/employee/payroll/download`, {
+        params: { month, year },
+        responseType: 'blob'
+      });
+      console.log('Payslip downloaded successfully:', response);
+      return response.data;
+    } catch (error) {
+      console.error('Download error details:', error);
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to download payslip';
+      throw new Error(errorMsg);
+    }
+  },
 };
 
 export default employeePayrollService;

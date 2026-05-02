@@ -44,10 +44,11 @@ exports.getAdminProfile = asyncHandler(async (req, res) => {
 // @desc    Update admin profile
 // @access  Private/Admin
 exports.updateAdminProfile = asyncHandler(async (req, res) => {
-  const { name, phone, department, organization } = req.body;
+  const { name, email, phone, department, organization } = req.body;
 
   const admin = await AdminAuthService.updateAdminProfile(req.user.id, {
     name,
+    email,
     phone,
     department,
     organization,

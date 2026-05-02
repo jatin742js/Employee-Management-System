@@ -249,14 +249,12 @@ const EmployeeSidebar = () => {
         {/* Sidebar Title */}
         <div className="px-4 py-4 border-b border-teal-200 dark:border-teal-700 bg-white dark:bg-gray-800">
           <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-linear-to-r from-teal-50 to-cyan-50 dark:from-gray-800 dark:to-gray-800 px-3 py-3 shadow-sm">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-teal-700 dark:text-teal-300">
-              Employee Workspace
-            </p>
+            
             <h2 className="mt-1 text-base font-bold leading-tight text-gray-900 dark:text-white tracking-wide">
               EMS Management System
             </h2>
             <p className="mt-1 text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
-              Smart workforce records and operations
+             Employee Panel
             </p>
           </div>
         </div>

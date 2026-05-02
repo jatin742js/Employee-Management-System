@@ -138,6 +138,67 @@ exports.getPayrollDetails = asyncHandler(async (req, res) => {
   successResponse(res, 200, "Payroll retrieved successfully", payroll);
 });
 
+// @route   GET /api/employee/payroll/download
+// @desc    Download payslip as PDF
+// @access  Private/Employee
+exports.downloadPayslip = asyncHandler(async (req, res) => {
+  const { month, year } = req.query;
+  
+  console.log('=== DOWNLOAD PAYSLIP REQUEST ===');
+  console.log('Employee ID:', req.user.id);
+  console.log('Month:', month);
+  console.log('Year:', year);
+  
+  if (!month || !year) {
+    console.log('❌ Missing month or year');
+    return errorResponse(res, 400, "Month and year are required");
+  }
+
+  // Fetch payroll record for the employee
+  const payroll = await PayrollService.getEmployeePayroll(req.user.id, { month });
+  
+  console.log('Payroll found:', payroll?.length || 0);
+  
+  if (!payroll || payroll.length === 0) {
+    console.log('❌ No payroll record found');
+    return errorResponse(res, 404, "Payroll record not found");
+  }
+
+  const payrollRecord = payroll[0];
+  console.log('✅ Payroll record:', payrollRecord._id);
+  
+  // Get employee details
+  const employee = await EmployeeAuthService.getEmployeeProfile(req.user.id);
+  
+  // Generate simple PDF content as text
+  const pdfContent = `
+PAYSLIP
+================================
+Employee ID: ${employee._id}
+Name: ${employee.name}
+Department: ${employee.department || 'N/A'}
+Month: ${month}
+Year: ${year}
+
+SALARY DETAILS
+================================
+Base Salary: ₹${Number(payrollRecord.baseSalary || 0).toLocaleString('en-IN')}
+Allowances: ₹${Number(payrollRecord.allowances || 0).toLocaleString('en-IN')}
+Deductions: ₹${Number(payrollRecord.deductions || 0).toLocaleString('en-IN')}
+Net Salary: ₹${Number(payrollRecord.netSalary || 0).toLocaleString('en-IN')}
+
+Status: ${payrollRecord.paymentStatus || 'Pending'}
+Generated: ${new Date().toLocaleDateString()}
+`;
+
+  // Set response headers for file download
+  res.setHeader('Content-Type', 'text/plain');
+  res.setHeader('Content-Disposition', `attachment; filename="Payslip_${month}_${year}.txt"`);
+  
+  console.log('✅ Sending file...');
+  res.send(pdfContent);
+});
+
 // ============ DASHBOARD ============
 
 // @route   GET /api/employee/dashboard/stats

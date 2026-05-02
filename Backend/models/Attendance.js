@@ -28,6 +28,14 @@ const attendanceSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    isLate: {
+      type: Boolean,
+      default: false, // true if checkInTime is after office start time
+    },
+    lateBy: {
+      type: Number, // minutes late
+      default: 0,
+    },
     remarks: {
       type: String,
       default: "",

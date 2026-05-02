@@ -11,10 +11,13 @@ import {
   Users,
   UserCheck,
   AlertCircle,
+  Zap,
 } from 'lucide-react';
 import adminAttendanceService from '../../../services/adminAttendanceService';
+import { useSocket } from '../../../context/SocketContext';
 
 const AttendancePage = () => {
+  const { socket } = useSocket();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [searchTerm, setSearchTerm] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
@@ -33,6 +36,17 @@ const AttendancePage = () => {
     late: 0,
     onLeave: 0,
   });
+  const [recentUpdate, setRecentUpdate] = useState(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update current time every second for real-time total time calculation
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000); // Update every second
+
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     // Load admin info from localStorage
@@ -44,7 +58,89 @@ const AttendancePage = () => {
       });
     }
     loadAttendanceData();
-  }, [selectedDate]);
+
+    // Socket.io listeners for real-time updates
+    if (socket) {
+      // Listen for attendance marked events (check-in)
+      socket.on('attendance:marked', (data) => {
+        const today = new Date().toISOString().split('T')[0];
+        const selectedDateStr = selectedDate.toISOString().split('T')[0];
+        
+        // Only update if the event is for today's date and matches selected date
+        if (data.date === today || data.date === selectedDateStr) {
+          setAttendance(prev => {
+            const updated = prev.map(emp => {
+              if (emp.id === data.employeeId || emp.id === data.empId) {
+                return {
+                  ...emp,
+                  checkIn: data.checkInTime || emp.checkIn,
+                  status: data.isLate ? 'late' : 'present',
+                  late: data.isLate || false,
+                };
+              }
+              return emp;
+            });
+            return updated;
+          });
+          
+          // Show visual indicator
+          setRecentUpdate(data.employeeId || data.empId);
+          setTimeout(() => setRecentUpdate(null), 3000);
+        }
+      });
+
+      // Listen for leave updates
+      socket.on('leave:updated', (data) => {
+        const today = new Date().toISOString().split('T')[0];
+        const selectedDateStr = selectedDate.toISOString().split('T')[0];
+        
+        if (data.date === today || data.date === selectedDateStr) {
+          setAttendance(prev => {
+            const updated = prev.map(emp => {
+              if (emp.id === data.employeeId) {
+                return {
+                  ...emp,
+                  status: 'leave',
+                  checkIn: null,
+                  checkOut: null,
+                };
+              }
+              return emp;
+            });
+            return updated;
+          });
+
+          setRecentUpdate(data.employeeId);
+          setTimeout(() => setRecentUpdate(null), 3000);
+        }
+      });
+
+      // Listen for attendance status changes
+      socket.on('attendance:statusChanged', (data) => {
+        setAttendance(prev => {
+          const updated = prev.map(emp => {
+            if (emp.id === data.employeeId) {
+              return {
+                ...emp,
+                status: data.newStatus,
+              };
+            }
+            return emp;
+          });
+          return updated;
+        });
+
+        setRecentUpdate(data.employeeId);
+        setTimeout(() => setRecentUpdate(null), 3000);
+      });
+
+      return () => {
+        socket.off('attendance:marked');
+        socket.off('leave:updated');
+        socket.off('attendance:statusChanged');
+      };
+    }
+  }, [selectedDate, socket]);
 
   const loadAttendanceData = async () => {
     try {
@@ -69,7 +165,8 @@ const AttendancePage = () => {
             checkIn: record.checkInTime || null,
             checkOut: record.checkOutTime || null,
             status: (record.status || 'absent').toLowerCase(),
-            late: false,
+            late: record.isLate || false, // Add late flag from backend
+            lateBy: record.lateBy || 0, // Minutes late
           }))
         : [];
 
@@ -77,8 +174,8 @@ const AttendancePage = () => {
 
       // Calculate stats
       const total = normalizedAttendance.length;
-      const present = normalizedAttendance.filter((a) => a.status === 'present').length;
-      const late = normalizedAttendance.filter((a) => a.status === 'half-day').length;
+      const present = normalizedAttendance.filter((a) => a.status === 'present' && !a.late).length;
+      const late = normalizedAttendance.filter((a) => a.status === 'present' && a.late || a.status === 'late').length;
       const onLeave = normalizedAttendance.filter((a) => a.status === 'leave').length;
       setStats({ total, present, late, onLeave });
 
@@ -91,6 +188,15 @@ const AttendancePage = () => {
       setIsLoading(false);
     }
   };
+
+  // Recalculate stats whenever attendance data changes (real-time updates)
+  useEffect(() => {
+    const total = attendance.length;
+    const present = attendance.filter((a) => a.status === 'present' && !a.late).length;
+    const late = attendance.filter((a) => (a.status === 'present' && a.late) || a.status === 'late').length;
+    const onLeave = attendance.filter((a) => a.status === 'leave').length;
+    setStats({ total, present, late, onLeave });
+  }, [attendance]);
 
   const formatDate = (date) => {
     return date.toLocaleDateString('en-US', {
@@ -138,33 +244,63 @@ const AttendancePage = () => {
   const getStatusBadge = (status, late) => {
     if (status === 'present') {
       return late
-        ? <span className="px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-700">Late</span>
+        ? <span className="px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-700 flex items-center gap-1"><Clock size={12} /> Late</span>
         : <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">Present</span>;
     }
-    if (status === 'late') return <span className="px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-700">Late</span>;
+    if (status === 'late') return <span className="px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-700 flex items-center gap-1"><Clock size={12} /> Late</span>;
     if (status === 'absent') return <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">Absent</span>;
     if (status === 'leave') return <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">On Leave</span>;
     if (status === 'half-day') return <span className="px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-700">Half Day</span>;
     return null;
   };
 
-  const calculateTotalTime = (checkIn, checkOut) => {
-    if (!checkIn || !checkOut) return '—';
+  // Unified time parsing function - handles both 12-hour and 24-hour formats
+  const parseTimeToMinutes = (timeStr) => {
+    if (!timeStr) return null;
     
     try {
-      // Parse times like "09:05 AM" to get hours and minutes
-      const parseTime = (timeStr) => {
-        const [time, period] = timeStr.split(' ');
-        let [hours, minutes] = time.split(':').map(Number);
-        
+      // Handle format like "09:05 AM" or "9:05 AM" or "09:05" (24-hour)
+      const parts = timeStr.trim().split(' ');
+      const timePart = parts[0];
+      const period = parts[1]?.toUpperCase(); // AM/PM
+      
+      const [hoursStr, minutesStr] = timePart.split(':');
+      let hours = parseInt(hoursStr);
+      const minutes = parseInt(minutesStr) || 0;
+      
+      // Handle 12-hour format (with AM/PM)
+      if (period) {
         if (period === 'PM' && hours !== 12) hours += 12;
         if (period === 'AM' && hours === 12) hours = 0;
-        
-        return hours * 60 + minutes; // Convert to minutes
-      };
+      }
+      // If no AM/PM, assume it's 24-hour format
       
-      const checkInMinutes = parseTime(checkIn);
-      const checkOutMinutes = parseTime(checkOut);
+      return hours * 60 + minutes;
+    } catch (e) {
+      console.error('Time parsing error for:', timeStr, e);
+      return null;
+    }
+  };
+
+  const calculateTotalTime = (checkIn, checkOut) => {
+    if (!checkIn) return '—';
+    
+    try {
+      const checkInMinutes = parseTimeToMinutes(checkIn);
+      if (checkInMinutes === null) return '—';
+      
+      // If checkOut exists, use it; otherwise use current time for real-time elapsed
+      let checkOutMinutes;
+      if (checkOut) {
+        checkOutMinutes = parseTimeToMinutes(checkOut);
+        if (checkOutMinutes === null) return '—';
+      } else {
+        // Use current time for real-time elapsed calculation
+        const now = currentTime;
+        const currentHours = now.getHours();
+        const currentMins = now.getMinutes();
+        checkOutMinutes = currentHours * 60 + currentMins;
+      }
       
       let diffMinutes = checkOutMinutes - checkInMinutes;
       
@@ -182,12 +318,65 @@ const AttendancePage = () => {
     }
   };
 
+  const formatLateTime = (minutes) => {
+    if (!minutes || minutes <= 0) return '';
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    
+    if (hours > 0 && mins > 0) {
+      return `${hours}h ${mins}m late`;
+    } else if (hours > 0) {
+      return `${hours}h late`;
+    } else {
+      return `${mins}m late`;
+    }
+  };
+
+  // Format time string to consistent format (e.g., "09:05:30 AM")
+  const formatTimeString = (timeStr) => {
+    if (!timeStr) return '—';
+    
+    try {
+      const parts = timeStr.trim().split(' ');
+      const timePart = parts[0];
+      const period = parts[1]?.toUpperCase();
+      
+      // Parse time parts
+      const timeParts = timePart.split(':');
+      let hours = parseInt(timeParts[0]);
+      const minutes = parseInt(timeParts[1]) || 0;
+      const seconds = parseInt(timeParts[2]) || 0;
+      
+      // Determine AM/PM from 24-hour format
+      let timePeriod = period;
+      
+      // If no period provided, determine from hours
+      if (!timePeriod || (timePeriod !== 'AM' && timePeriod !== 'PM')) {
+        timePeriod = hours >= 12 ? 'PM' : 'AM';
+        if (hours > 12) hours -= 12;
+        if (hours === 0) hours = 12;
+      }
+      
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')} ${timePeriod}`;
+    } catch (e) {
+      return timeStr || '—';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 px-4 sm:px-6 lg:px-8 py-6">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Attendance Management</h1>
-        <p className="text-gray-600 mt-2 text-sm sm:text-base">{adminInfo.organization} · {adminInfo.role}</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Attendance Management</h1>
+            <p className="text-gray-600 mt-2 text-sm sm:text-base">{adminInfo.organization} · {adminInfo.role}</p>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg border border-blue-200">
+            <Zap className="h-4 w-4 text-blue-600 animate-pulse" />
+            <span className="text-sm font-medium text-blue-700">Live Updates</span>
+          </div>
+        </div>
       </div>
 
       <div className="max-w-7xl mx-auto">
@@ -232,7 +421,7 @@ const AttendancePage = () => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm font-medium">Total Employees</p>
@@ -241,7 +430,7 @@ const AttendancePage = () => {
             <Users className="h-8 w-8 text-gray-400" />
           </div>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm font-medium">Present</p>
@@ -250,7 +439,7 @@ const AttendancePage = () => {
             <UserCheck className="h-8 w-8 text-green-500" />
           </div>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm font-medium">Late</p>
@@ -259,7 +448,7 @@ const AttendancePage = () => {
             <Clock className="h-8 w-8 text-orange-500" />
           </div>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm font-medium">On Leave</p>
@@ -344,9 +533,17 @@ const AttendancePage = () => {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {filteredEmployees.map((emp) => (
-                <tr key={emp.id} className="hover:bg-gray-50 transition-colors">
+                <tr 
+                  key={emp.id} 
+                  className={`hover:bg-gray-50 transition-colors ${
+                    recentUpdate === emp.id ? 'bg-blue-50 animate-pulse' : ''
+                  }`}
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
+                      {recentUpdate === emp.id && (
+                        <Zap className="h-4 w-4 text-blue-500 mr-2 animate-bounce" />
+                      )}
                       <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-semibold text-sm">
                         {emp.name.charAt(0)}
                       </div>
@@ -354,8 +551,8 @@ const AttendancePage = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-gray-700">{emp.department}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-700">{emp.checkIn || '—'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-700">{emp.checkOut || '—'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-700">{formatTimeString(emp.checkIn)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-700">{formatTimeString(emp.checkOut)}</td>
                   <td className="px-6 py-4 whitespace-nowrap relative">
                     <button 
                       onClick={() => setSelectedStatusId(selectedStatusId === emp.id ? null : emp.id)}
@@ -364,6 +561,13 @@ const AttendancePage = () => {
                       {getStatusIcon(emp.status, emp.late)}
                       {getStatusBadge(emp.status, emp.late)}
                     </button>
+
+                    {/* Show late time in hours:minutes format */}
+                    {emp.late && emp.lateBy > 0 && (
+                      <span className="ml-2 text-xs text-orange-600 font-medium">
+                        ({formatLateTime(emp.lateBy)})
+                      </span>
+                    )}
 
                     {/* Status Dropdown */}
                     {selectedStatusId === emp.id && (

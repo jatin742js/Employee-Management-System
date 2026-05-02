@@ -42,6 +42,8 @@ class EmployeeService {
       bio,
       photo,
       address,
+      officeStartTime,
+      officeEndTime,
     } = employeeData;
 
     // Check email uniqueness
@@ -72,6 +74,8 @@ class EmployeeService {
       bio: bio || '',
       photo: photo || null,
       address,
+      officeStartTime: officeStartTime || "09:00",
+      officeEndTime: officeEndTime || "18:00",
       plainPassword: password, // Store original password for admin viewing
     });
 
@@ -113,6 +117,8 @@ class EmployeeService {
       manager,
       dateOfJoining,
       password, // New password if provided
+      officeStartTime,
+      officeEndTime,
     } = updateData;
 
     // If password is being updated, use save() to trigger pre-save middleware
@@ -136,6 +142,8 @@ class EmployeeService {
       employee.address = address || employee.address;
       employee.manager = manager || employee.manager;
       employee.dateOfJoining = dateOfJoining || employee.dateOfJoining;
+      employee.officeStartTime = officeStartTime || employee.officeStartTime;
+      employee.officeEndTime = officeEndTime || employee.officeEndTime;
       employee.password = password; // This will be hashed by pre-save
       employee.plainPassword = password; // Store plain password for admin viewing
       
@@ -172,6 +180,8 @@ class EmployeeService {
           address, 
           manager,
           dateOfJoining,
+          officeStartTime,
+          officeEndTime,
         },
         { new: true, runValidators: true }
       ).populate("manager", "name email");

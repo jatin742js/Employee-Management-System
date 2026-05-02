@@ -96,6 +96,14 @@ const employeeSchema = new mongoose.Schema(
       postalCode: String,
       country: String,
     },
+    officeStartTime: {
+      type: String, // Format: "HH:MM" (24-hour)
+      default: "09:00",
+    },
+    officeEndTime: {
+      type: String, // Format: "HH:MM" (24-hour)
+      default: "18:00",
+    },
   },
   { timestamps: true }
 );

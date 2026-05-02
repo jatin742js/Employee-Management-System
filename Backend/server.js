@@ -94,6 +94,38 @@ app.get("/", (req, res) => {
   });
 });
 
+// DEBUG: Create test payroll data for employee
+app.post("/api/debug/create-test-payroll", async (req, res) => {
+  try {
+    const Payroll = require("./models/Payroll");
+    
+    const testPayroll = {
+      employee: "69ec8907e55f264181f4a6b0", // Employee ID from terminal
+      month: "July",
+      baseSalary: 50000,
+      allowances: 5000,
+      deductions: 2500,
+      netSalary: 52500,
+      paymentStatus: "pending",
+      createdBy: "admin"
+    };
+    
+    const payroll = await Payroll.create(testPayroll);
+    console.log("✅ Test payroll created:", payroll._id);
+    
+    res.status(201).json({
+      message: "Test payroll created successfully",
+      data: payroll
+    });
+  } catch (error) {
+    console.error("Error creating test payroll:", error);
+    res.status(500).json({
+      message: "Error creating test payroll",
+      error: error.message
+    });
+  }
+});
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });

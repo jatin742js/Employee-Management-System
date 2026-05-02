@@ -29,6 +29,7 @@ router.delete("/leaves/:id", verifyToken, employeeOnly, employeeController.cance
 
 // ============ PAYROLL ============
 router.get("/payroll", verifyToken, employeeOnly, employeeController.getMyPayroll);
+router.get("/payroll/download", verifyToken, employeeOnly, employeeController.downloadPayslip);
 router.get("/payroll/:id", verifyToken, employeeOnly, employeeController.getPayrollDetails);
 
 // ============ DASHBOARD ============

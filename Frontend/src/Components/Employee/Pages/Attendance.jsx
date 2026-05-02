@@ -34,6 +34,31 @@ export default function AttendanceDashboard() {
   
   const [attendanceHistory, setAttendanceHistory] = useState([]);
 
+  // Helper function to parse time string to minutes
+  const parseTimeToMinutes = (timeValue) => {
+    if (!timeValue || timeValue === '-') return null;
+    const value = String(timeValue).trim();
+
+    // 12-hour format e.g. 10:33 AM or 10:33:12 AM
+    const meridiemMatch = value.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+    if (meridiemMatch) {
+      let hour = Number(meridiemMatch[1]);
+      const minute = Number(meridiemMatch[2]);
+      const meridiem = meridiemMatch[3].toUpperCase();
+      if (meridiem === 'PM' && hour !== 12) hour += 12;
+      if (meridiem === 'AM' && hour === 12) hour = 0;
+      return hour * 60 + minute;
+    }
+
+    // 24-hour format e.g. 19:12 or 19:12:00
+    const twentyFourMatch = value.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+    if (twentyFourMatch) {
+      return Number(twentyFourMatch[1]) * 60 + Number(twentyFourMatch[2]);
+    }
+
+    return null;
+  };
+
   useEffect(() => {
     loadAttendance();
     loadEmployeeProfile();
@@ -62,17 +87,30 @@ export default function AttendanceDashboard() {
         (Array.isArray(response) ? response : []);
       
       if (Array.isArray(data)) {
-        const formattedData = data.map((record) => ({
-          date: new Date(record.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
-          month: new Date(record.date).toLocaleDateString('en-US', { month: 'long' }),
-          year: new Date(record.date).getFullYear().toString(),
-          checkIn: record.checkInTime || '-',
-          checkOut: record.checkOutTime || '-',
-          hours: record.workingHours ? `${record.workingHours}h` : record.checkOutTime ? '0h' : 'Ongoing',
-          dayType: record.type || 'Regular',
-          status: (record.status || 'present').replace(/^./, (c) => c.toUpperCase()),
-          progress: record.progress || 0,
-        }));
+        // Function to check if check-in time is late (after 10:00 AM)
+        const isTimeLate = (timeStr) => {
+          if (!timeStr || timeStr === '-') return false;
+          const checkInMinutes = parseTimeToMinutes(timeStr);
+          const onTimeThresholdMinutes = 10 * 60; // 10:00 AM
+          return checkInMinutes !== null && checkInMinutes > onTimeThresholdMinutes;
+        };
+
+        const formattedData = data.map((record) => {
+          const checkInTime = record.checkInTime || '-';
+          const isLate = isTimeLate(checkInTime);
+          
+          return {
+            date: new Date(record.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+            month: new Date(record.date).toLocaleDateString('en-US', { month: 'long' }),
+            year: new Date(record.date).getFullYear().toString(),
+            checkIn: checkInTime,
+            checkOut: record.checkOutTime || '-',
+            hours: record.workingHours ? `${record.workingHours}h` : record.checkOutTime ? '0h' : 'Ongoing',
+            dayType: record.type || 'Regular',
+            status: isLate && checkInTime !== '-' ? 'Late' : (record.status || 'present').replace(/^./, (c) => c.toUpperCase()),
+            progress: record.progress || 0,
+          };
+        });
         setAttendanceHistory(formattedData);
 
         const todayRecord = data.find((record) => {
@@ -222,28 +260,12 @@ export default function AttendanceDashboard() {
     ? 'attendance rate'
     : 'no records';
 
-  const parseTimeToMinutes = (timeValue) => {
-    if (!timeValue || timeValue === '-') return null;
-    const value = String(timeValue).trim();
-
-    // 12-hour format e.g. 10:33 AM or 10:33:12 AM
-    const meridiemMatch = value.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
-    if (meridiemMatch) {
-      let hour = Number(meridiemMatch[1]);
-      const minute = Number(meridiemMatch[2]);
-      const meridiem = meridiemMatch[3].toUpperCase();
-      if (meridiem === 'PM' && hour !== 12) hour += 12;
-      if (meridiem === 'AM' && hour === 12) hour = 0;
-      return hour * 60 + minute;
-    }
-
-    // 24-hour format e.g. 19:12 or 19:12:00
-    const twentyFourMatch = value.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
-    if (twentyFourMatch) {
-      return Number(twentyFourMatch[1]) * 60 + Number(twentyFourMatch[2]);
-    }
-
-    return null;
+  // Helper function to check if check-in time is late (after 10:00 AM)
+  const isCheckInLate = (timeStr) => {
+    if (!timeStr || timeStr === '-') return false;
+    const checkInMinutes = parseTimeToMinutes(timeStr);
+    const onTimeThresholdMinutes = 10 * 60; // 10:00 AM
+    return checkInMinutes !== null && checkInMinutes > onTimeThresholdMinutes;
   };
 
   const formatMinutesTo12Hour = (minutes) => {
@@ -290,9 +312,63 @@ export default function AttendanceDashboard() {
   const avgHours = Math.floor(averageMinutes / 60);
   const avgMins = averageMinutes % 60;
 
+  // Format time string to consistent format (e.g., "09:05:30 AM")
+  const formatTimeString = (timeStr) => {
+    if (!timeStr || timeStr === '-') return '—';
+    
+    try {
+      const parts = timeStr.trim().split(' ');
+      const timePart = parts[0];
+      const period = parts[1]?.toUpperCase();
+      
+      // Parse time parts
+      const timeParts = timePart.split(':');
+      let hours = parseInt(timeParts[0]);
+      const minutes = parseInt(timeParts[1]) || 0;
+      const seconds = parseInt(timeParts[2]) || 0;
+      
+      // Determine AM/PM from 24-hour format
+      let timePeriod = period;
+      
+      // If no period provided, determine from hours
+      if (!timePeriod || (timePeriod !== 'AM' && timePeriod !== 'PM')) {
+        timePeriod = hours >= 12 ? 'PM' : 'AM';
+        if (hours > 12) hours -= 12;
+        if (hours === 0) hours = 12;
+      }
+      
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')} ${timePeriod}`;
+    } catch (e) {
+      return timeStr || '—';
+    }
+  };
+
   const canCheckIn = !checkInTime && lastCheckInDate !== todayDateString;
   const canCheckOut = Boolean(checkInTime) && !checkOutTime;
   const isActionDisabled = isCheckingIn || isCheckingOut || (!canCheckIn && !canCheckOut);
+
+  // Determine badge color class based on check-in/out status
+  const getBadgeClass = () => {
+    if (checkOutTime || (checkInTime && isCheckInLate(checkInTime))) {
+      return isCheckInLate(checkInTime) ? "bg-orange-500" : "bg-teal-500";
+    }
+    return checkInTime ? "bg-teal-500" : "bg-gray-500";
+  };
+
+  // Determine badge text based on check-in/out status
+  const getBadgeText = () => {
+    if (checkOutTime) return "Present";
+    if (checkInTime) return isCheckInLate(checkInTime) ? "Late" : "Present";
+    return "Not Marked";
+  };
+
+  // Determine circle stroke color based on check-in/out status
+  const getCircleStrokeColor = () => {
+    if (checkOutTime) return "#14b8a6"; // Checked out
+    if (checkInTime && isCheckInLate(checkInTime)) return "#f97316"; // Late (orange)
+    if (checkInTime) return "#14b8a6"; // Checked in on time
+    return "#f59e0b"; // Not checked in yet
+  };
 
   return (
     <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
@@ -312,10 +388,8 @@ export default function AttendanceDashboard() {
           <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-5 shadow-sm col-span-1 sm:col-span-2 lg:col-span-1">
             <div className="flex justify-between items-center mb-6">
               <h2 className="font-semibold text-gray-900 text-base">Today</h2>
-              <span className={`text-white text-xs px-2.5 py-1 rounded-full font-medium ${
-                checkOutTime ? "bg-teal-500" : checkInTime ? "bg-teal-500" : "bg-gray-500"
-              }`}>
-                {checkOutTime ? "Present" : checkInTime ? "Present" : "Not Marked"}
+              <span className={`text-white text-xs px-2.5 py-1 rounded-full font-medium ${getBadgeClass()}`}>
+                {getBadgeText()}
               </span>
             </div>
 
@@ -328,7 +402,7 @@ export default function AttendanceDashboard() {
                     cy="60"
                     r="54"
                     fill="none"
-                    stroke={checkOutTime ? "#14b8a6" : checkInTime ? "#14b8a6" : "#f59e0b"}
+                    stroke={getCircleStrokeColor()}
                     strokeWidth="12"
                     strokeDasharray={`${(todayProgressPercent / 100) * 339.3} 339.3`}
                   />
@@ -550,8 +624,8 @@ export default function AttendanceDashboard() {
                           .map((item, index) => (
                     <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition">
                       <td className="px-6 py-4 text-gray-900">{item.date}</td>
-                      <td className="px-6 py-4 text-gray-900">{item.checkIn}</td>
-                      <td className="px-6 py-4 text-gray-600">{item.checkOut}</td>
+                      <td className="px-6 py-4 text-gray-900">{formatTimeString(item.checkIn)}</td>
+                      <td className="px-6 py-4 text-gray-600">{formatTimeString(item.checkOut)}</td>
                       <td className="px-6 py-4 text-gray-900">{item.hours}</td>
                       <td className="px-6 py-4">
                         <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
@@ -559,7 +633,11 @@ export default function AttendanceDashboard() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="px-3 py-1 bg-teal-50 text-teal-700 rounded text-xs font-medium border border-teal-200">
+                        <span className={`px-3 py-1 rounded text-xs font-medium border ${
+                          item.status === 'Late' 
+                            ? 'bg-orange-50 text-orange-700 border-orange-200' 
+                            : 'bg-teal-50 text-teal-700 border-teal-200'
+                        }`}>
                           {item.status}
                         </span>
                       </td>

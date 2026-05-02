@@ -191,6 +191,18 @@ exports.getAllPayroll = asyncHandler(async (req, res) => {
 exports.createPayroll = asyncHandler(async (req, res) => {
   const payroll = await PayrollService.createPayroll(req.body, req.user.id);
 
+  // Emit socket event to employee
+  if (payroll && payroll.employee) {
+    emitToEmployee(payroll.employee._id || payroll.employee, 'payroll:created', {
+      payrollId: payroll._id,
+      month: payroll.month,
+      year: payroll.year,
+      netSalary: payroll.netSalary,
+      status: payroll.paymentStatus,
+      message: `Your payslip for ${payroll.month} ${payroll.year} has been created`
+    });
+  }
+
   successResponse(res, 201, "Payroll created successfully", payroll);
 });
 
@@ -205,6 +217,17 @@ exports.updatePayrollStatus = asyncHandler(async (req, res) => {
     paymentStatus,
     paymentDate
   );
+
+  // Emit socket event to employee
+  if (payroll && payroll.employee) {
+    emitToEmployee(payroll.employee._id || payroll.employee, 'payroll:statusUpdated', {
+      payrollId: payroll._id,
+      month: payroll.month,
+      year: payroll.year,
+      status: payroll.paymentStatus,
+      message: `Your payslip status for ${payroll.month} ${payroll.year} has been updated to ${paymentStatus}`
+    });
+  }
 
   successResponse(res, 200, "Payroll status updated successfully", payroll);
 });
