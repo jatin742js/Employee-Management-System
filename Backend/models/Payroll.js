@@ -49,6 +49,24 @@ const payrollSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    allowancesBreakdown: [
+      {
+        id: String,
+        name: String,
+        amount: Number,
+      },
+    ],
+    deductionsBreakdown: [
+      {
+        id: String,
+        name: String,
+        amount: Number,
+      },
+    ],
+    bankAccount: {
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true }
 );

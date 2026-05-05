@@ -7,7 +7,7 @@ class PayrollService {
   // Get all payroll records with filters
   static async getAllPayroll(filters = {}) {
     const payroll = await Payroll.find(filters)
-      .populate("employee", "name employeeId email department")
+      .populate("employee", "name employeeId email department bankAccount dateOfJoining position role")
       .sort({ month: -1 });
 
     return payroll;
@@ -17,7 +17,9 @@ class PayrollService {
   static async getEmployeePayroll(employeeId, filters = {}) {
     const query = { employee: employeeId, ...filters };
 
-    const payroll = await Payroll.find(query).sort({ month: -1 });
+    const payroll = await Payroll.find(query)
+      .populate("employee", "name employeeId email department bankAccount dateOfJoining position role")
+      .sort({ month: -1 });
 
     return payroll;
   }
@@ -32,6 +34,9 @@ class PayrollService {
       deductions,
       bonus,
       paymentMethod,
+      allowancesBreakdown,
+      deductionsBreakdown,
+      bankAccount,
     } = payrollData;
 
     // Check if payroll already exists for this month
@@ -52,6 +57,9 @@ class PayrollService {
       bonus,
       netSalary,
       paymentMethod,
+      allowancesBreakdown: allowancesBreakdown || [],
+      deductionsBreakdown: deductionsBreakdown || [],
+      bankAccount: bankAccount || "",
     });
 
     // Create notification for admin
@@ -120,6 +128,9 @@ class PayrollService {
       deductions,
       bonus,
       remarks,
+      allowancesBreakdown,
+      deductionsBreakdown,
+      bankAccount,
     } = updateData;
 
     // Recalculate net salary if salary components change
@@ -133,6 +144,11 @@ class PayrollService {
 
       updateData.netSalary = newBaseSalary + newAllowances + newBonus - newDeductions;
     }
+
+    // Add breakdown data and bank account if provided
+    if (allowancesBreakdown) updateData.allowancesBreakdown = allowancesBreakdown;
+    if (deductionsBreakdown) updateData.deductionsBreakdown = deductionsBreakdown;
+    if (bankAccount) updateData.bankAccount = bankAccount;
 
     const payroll = await Payroll.findByIdAndUpdate(payrollId, updateData, {
       new: true,
