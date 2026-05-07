@@ -5,6 +5,7 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import employeePayrollService from "../../../services/employeePayrollService";
 import { useSocket } from "../../../context/SocketContext";
+import api from "../../../services/api";
 
 const PayrollPage = () => {
   const [selectedMonth, setSelectedMonth] = useState("All");
@@ -197,7 +198,9 @@ const PayrollPage = () => {
 
       const salaryInWords = numberToWords(Math.floor(netSalary)) + ' Rupees Only';
 
-      const htmlContent = `
+      // Define PDF generation function before using it
+      const generatePDF = (companyName, companyAddressLine, companyEmail, companyPhone) => {
+        const htmlContent = `
         <div class="salary-slip" style="width: 100%; background: #ffffff; padding: 0; font-family: 'Inter', Arial, sans-serif; color: #1a2c3e;">
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -248,9 +251,10 @@ const PayrollPage = () => {
             <!-- HEADER -->
             <div class="header-section">
               <div class="company-info">
-                <h1>EMPLOYEE MANAGEMENT SYSTEM</h1>
+                <h1>${companyName}</h1>
                 <p>Professional Payroll & HR Solution</p>
-                <p>Pune, India | hr@company.com</p>
+                <p>${companyAddressLine}</p>
+                <p>Email: ${companyEmail} | Phone: ${companyPhone}</p>
               </div>
               <div class="slip-badge">
                 <div class="month-year">${monthName} ${yearStr}</div>
@@ -335,69 +339,94 @@ const PayrollPage = () => {
         </div>
       `;
 
-      // Create element and append to document for rendering only
-      const element = document.createElement('div');
-      element.innerHTML = htmlContent;
-      element.style.position = 'fixed';
-      element.style.left = '-9999px';
-      element.style.top = '-9999px';
-      element.style.width = '210mm';
-      element.style.zIndex = '-1000';
-      
-      document.body.appendChild(element);
+        // Create element and append to document for rendering only
+        const element = document.createElement('div');
+        element.innerHTML = htmlContent;
+        element.style.position = 'fixed';
+        element.style.left = '-9999px';
+        element.style.top = '-9999px';
+        element.style.width = '210mm';
+        element.style.zIndex = '-1000';
+        
+        document.body.appendChild(element);
 
-      // Use requestAnimationFrame to ensure rendering completes before PDF generation
-      requestAnimationFrame(() => {
-        setTimeout(async () => {
-          try {
-            const salarySlipDiv = element.querySelector('.salary-slip');
-            
-            // Generate canvas from the element
-            const canvas = await html2canvas(salarySlipDiv, {
-              scale: 2,
-              useCORS: true,
-              allowTaint: true,
-              logging: false,
-              backgroundColor: '#ffffff',
-              windowHeight: salarySlipDiv.scrollHeight,
-              windowWidth: salarySlipDiv.scrollWidth
-            });
+        // Use requestAnimationFrame to ensure rendering completes before PDF generation
+        requestAnimationFrame(() => {
+          setTimeout(async () => {
+            try {
+              const salarySlipDiv = element.querySelector('.salary-slip');
+              
+              // Generate canvas from the element
+              const canvas = await html2canvas(salarySlipDiv, {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                windowHeight: salarySlipDiv.scrollHeight,
+                windowWidth: salarySlipDiv.scrollWidth
+              });
 
-            // Create PDF and add canvas image
-            const pdf = new jsPDF({
-              unit: 'mm',
-              format: 'a4',
-              orientation: 'portrait'
-            });
+              // Create PDF and add canvas image
+              const pdf = new jsPDF({
+                unit: 'mm',
+                format: 'a4',
+                orientation: 'portrait'
+              });
 
-            const imgData = canvas.toDataURL('image/jpeg', 0.98);
-            const pageWidth = pdf.internal.pageSize.getWidth();
-            const pageHeight = pdf.internal.pageSize.getHeight();
-            
-            // Calculate image dimensions to fit A4 with margins
-            const margin = 5;
-            const imgWidth = pageWidth - (margin * 2);
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+              const imgData = canvas.toDataURL('image/jpeg', 0.98);
+              const pageWidth = pdf.internal.pageSize.getWidth();
+              const pageHeight = pdf.internal.pageSize.getHeight();
+              
+              // Calculate image dimensions to fit A4 with margins
+              const margin = 5;
+              const imgWidth = pageWidth - (margin * 2);
+              const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-            pdf.addImage(imgData, 'JPEG', margin, margin, imgWidth, imgHeight);
-            pdf.save(`Payslip_${employeeId}_${monthName}_${yearStr}.pdf`);
+              pdf.addImage(imgData, 'JPEG', margin, margin, imgWidth, imgHeight);
+              pdf.save(`Payslip_${employeeId}_${monthName}_${yearStr}.pdf`);
 
-            // Cleanup
-            if (document.body.contains(element)) {
-              document.body.removeChild(element);
+              // Cleanup
+              if (document.body.contains(element)) {
+                document.body.removeChild(element);
+              }
+              setDownloadingId(null);
+            } catch (err) {
+              console.error('PDF generation error:', err);
+              if (document.body.contains(element)) {
+                document.body.removeChild(element);
+              }
+              setDownloadingId(null);
+              alert('Error generating PDF. Please try again.');
             }
-            setDownloadingId(null);
-          } catch (err) {
-            console.error('PDF generation error:', err);
-            if (document.body.contains(element)) {
-              document.body.removeChild(element);
-            }
-            setDownloadingId(null);
-            alert('Error generating PDF. Please try again.');
-          }
-        }, 50);
-      });
+          }, 50);
+        });
+      };
 
+      // Fetch company info from API
+      api.get('/admin/auth/company-info')
+        .then(res => {
+          const companyInfo = res.data.data || {};
+          const companyName = companyInfo.organization || 'EMPLOYEE MANAGEMENT SYSTEM';
+          const companyAddress = companyInfo.address || {};
+          const companyAddressLine = [
+            companyAddress.street,
+            companyAddress.city,
+            companyAddress.state,
+            companyAddress.zip,
+            companyAddress.country
+          ].filter(Boolean).join(', ') || 'Pune, India';
+          
+          const companyEmail = companyInfo.email || 'hr@company.com';
+          const companyPhone = companyInfo.phone || 'N/A';
+          
+          generatePDF(companyName, companyAddressLine, companyEmail, companyPhone);
+        })
+        .catch(err => {
+          console.log('Error fetching company info, using defaults:', err);
+          // Use defaults if API fails
+          generatePDF('EMPLOYEE MANAGEMENT SYSTEM', 'Pune, India', 'hr@company.com', 'N/A');
+        });
     } catch (error) {
       console.error('PDF Error:', error);
       alert('Error generating PDF. Please try again.');

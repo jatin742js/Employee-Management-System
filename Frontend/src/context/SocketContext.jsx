@@ -3,6 +3,8 @@ import io from 'socket.io-client';
 
 const SocketContext = createContext(null);
 
+export { SocketContext };
+
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);

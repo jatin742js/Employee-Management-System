@@ -129,6 +129,18 @@ export default function Payroll() {
       const monthName = monthNames[monthNum - 1];
       const monthShortName = monthShort[monthNum - 1];
       
+      // Get admin company info from localStorage
+      const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
+      const companyName = adminUser.organization || 'EMPLOYEE MANAGEMENT SYSTEM';
+      const companyAddress = adminUser.address || {};
+      const companyAddressLine = [
+        companyAddress.street,
+        companyAddress.city,
+        companyAddress.state,
+        companyAddress.zip,
+        companyAddress.country
+      ].filter(Boolean).join(', ') || 'Pune, India';
+      
       const employeeName = payslip.employee?.name || 'Employee';
       const employeeId = payslip.employee?.employeeId || 'N/A';
       const department = payslip.employee?.department || 'N/A';
@@ -220,9 +232,10 @@ export default function Payroll() {
             <!-- HEADER -->
             <div class="header-section">
               <div class="company-info">
-                <h1>EMPLOYEE MANAGEMENT SYSTEM</h1>
+                <h1>${companyName}</h1>
                 <p>Professional Payroll & HR Solution</p>
-                <p>Pune, India | hr@company.com</p>
+                <p>${companyAddressLine}</p>
+                <p>Email: ${adminUser.email || 'hr@company.com'} | Phone: ${adminUser.phone || 'N/A'}</p>
               </div>
               <div class="slip-badge">
                 <div class="month-year">${monthName} ${yearStr}</div>
@@ -310,63 +323,72 @@ export default function Payroll() {
       // Create element and append to document for rendering only
       const element = document.createElement('div');
       element.innerHTML = htmlContent;
-      element.style.position = 'fixed';
-      element.style.left = '-9999px';
-      element.style.top = '-9999px';
+      element.style.position = 'absolute';
+      element.style.left = '0';
+      element.style.top = '0';
       element.style.width = '210mm';
-      element.style.zIndex = '-1000';
-      
+      element.style.pointerEvents = 'none';
+      element.style.opacity = '0';
+      element.style.zIndex = '-1';
+      element.style.transform = 'translateX(-200vw)';
+      element.style.overflow = 'hidden';
+
       document.body.appendChild(element);
-
+      
+     
       // Use requestAnimationFrame to ensure rendering completes before PDF generation
-      requestAnimationFrame(() => {
-        setTimeout(async () => {
-          try {
-            const salarySlipDiv = element.querySelector('.salary-slip');
-            
-            // Generate canvas from the element
-            const canvas = await html2canvas(salarySlipDiv, {
-              scale: 2,
-              useCORS: true,
-              allowTaint: true,
-              logging: false,
-              backgroundColor: '#ffffff',
-              windowHeight: salarySlipDiv.scrollHeight,
-              windowWidth: salarySlipDiv.scrollWidth
-            });
+     
 
-            // Create PDF and add canvas image
-            const pdf = new jsPDF({
-              unit: 'mm',
-              format: 'a4',
-              orientation: 'portrait'
-            });
+const originalOverflow = document.body.style.overflow;
+document.body.style.overflow = 'hidden';
 
-            const imgData = canvas.toDataURL('image/jpeg', 0.98);
-            const pageWidth = pdf.internal.pageSize.getWidth();
-            const pageHeight = pdf.internal.pageSize.getHeight();
-            
-            // Calculate image dimensions to fit A4 with margins
-            const margin = 5;
-            const imgWidth = pageWidth - (margin * 2);
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+requestAnimationFrame(() => {
+  setTimeout(async () => {
+    try {
+      const salarySlipDiv = element.querySelector('.salary-slip');
 
-            pdf.addImage(imgData, 'JPEG', margin, margin, imgWidth, imgHeight);
-            pdf.save(`Payslip_${employeeId}_${monthName}_${yearStr}.pdf`);
-
-            // Cleanup
-            if (document.body.contains(element)) {
-              document.body.removeChild(element);
-            }
-          } catch (err) {
-            console.error('PDF generation error:', err);
-            if (document.body.contains(element)) {
-              document.body.removeChild(element);
-            }
-            alert('Error generating PDF. Please try again.');
-          }
-        }, 50);
+      const canvas = await html2canvas(salarySlipDiv, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: '#ffffff',
       });
+
+      const pdf = new jsPDF({
+        unit: 'mm',
+        format: 'a4',
+        orientation: 'portrait'
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const margin = 5;
+      const imgWidth = pageWidth - margin * 2;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'JPEG', margin, margin, imgWidth, imgHeight);
+
+      pdf.save(`Payslip_${employeeId}_${monthName}_${yearStr}.pdf`);
+
+      document.body.style.overflow = originalOverflow;
+
+      if (document.body.contains(element)) {
+        document.body.removeChild(element);
+      }
+
+    } catch (err) {
+      console.error(err);
+
+      document.body.style.overflow = originalOverflow;
+
+      if (document.body.contains(element)) {
+        document.body.removeChild(element);
+      }
+    }
+  }, 50);
+});
 
     } catch (error) {
       console.error('PDF Error:', error);

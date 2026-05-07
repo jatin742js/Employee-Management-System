@@ -12,7 +12,6 @@ const adminSchema = new mongoose.Schema(
       type: String,
       required: [true, "Please provide an email"],
       unique: true,
-      lowercase: true,
       match: [
         /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
         "Please provide a valid email",
@@ -40,6 +39,28 @@ const adminSchema = new mongoose.Schema(
     organization: {
       type: String,
       default: "Organization",
+    },
+    address: {
+      street: {
+        type: String,
+        default: "",
+      },
+      city: {
+        type: String,
+        default: "",
+      },
+      state: {
+        type: String,
+        default: "",
+      },
+      zip: {
+        type: String,
+        default: "",
+      },
+      country: {
+        type: String,
+        default: "",
+      },
     },
     isActive: {
       type: Boolean,

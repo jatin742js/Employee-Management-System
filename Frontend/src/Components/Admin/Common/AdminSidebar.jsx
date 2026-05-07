@@ -73,6 +73,7 @@ const AdminSidebar = () => {
         ...prev,
         name: detail.name || prev.name,
         email: detail.email || prev.email,
+        organization: detail.organization || prev.organization,
         department: detail.department || prev.department,
       }));
     };
@@ -248,16 +249,14 @@ const AdminSidebar = () => {
             </div>
 
             <div className="min-w-0 flex-1">
-              <h3 className="truncate text-sm font-bold text-gray-900 dark:text-white">{adminInfo.name}</h3>
+              <h3 className="truncate text-sm font-bold text-gray-900 dark:text-white">{adminInfo.organization}</h3>
               <p className="truncate text-xs text-gray-500 dark:text-gray-400">{adminInfo.email}</p>
 
               <div className="mt-2 flex flex-wrap gap-2">
                 <span className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-1 text-[11px] font-semibold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
-                  {adminInfo.role}
+                  admin
                 </span>
-                <span className="inline-flex items-center rounded-full bg-sky-100 px-2.5 py-1 text-[11px] font-semibold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
-                  {adminInfo.department}
-                </span>
+               
               </div>
 
               <div className="mt-3 space-y-1 text-xs text-gray-600 dark:text-gray-400">

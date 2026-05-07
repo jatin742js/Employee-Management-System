@@ -245,7 +245,7 @@ const AdminDashboard = () => {
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
-              Welcome back, {adminInfo.name}
+              Welcome back
             </h1>
             <p className="text-gray-600 mt-2">
               {adminInfo.organization} · {adminInfo.role}

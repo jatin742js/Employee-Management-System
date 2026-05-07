@@ -40,6 +40,7 @@ const forgotPasswordValidation = [
 router.post("/register", registerValidation, adminAuthController.registerAdmin);
 router.post("/login", loginValidation, adminAuthController.loginAdmin);
 router.post("/forgot-password", forgotPasswordValidation, adminAuthController.forgotPassword);
+router.get("/company-info", adminAuthController.getCompanyInfo);
 router.get("/profile", verifyToken, adminOnly, adminAuthController.getAdminProfile);
 router.put("/profile", verifyToken, adminOnly, adminAuthController.updateAdminProfile);
 router.put("/change-password", verifyToken, adminOnly, changePasswordValidation, adminAuthController.changeAdminPassword);

@@ -79,11 +79,22 @@ class AdminAuthService {
 
   // Update admin profile
   static async updateAdminProfile(adminId, updateData) {
-    const { name, email, phone, department, organization } = updateData;
+    const { name, email, phone, department, organization, address } = updateData;
+
+    const updateFields = {
+      email,
+      phone,
+      department,
+      organization,
+    };
+
+    if (address) {
+      updateFields.address = address;
+    }
 
     const admin = await Admin.findByIdAndUpdate(
       adminId,
-      { name, email, phone, department, organization },
+      updateFields,
       { new: true, runValidators: true }
     );
 

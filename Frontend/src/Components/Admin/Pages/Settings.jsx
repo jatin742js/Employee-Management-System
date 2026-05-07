@@ -4,18 +4,20 @@ import {
   Mail,
   Phone,
   Building2,
-  Briefcase,
   Lock,
   Eye,
   EyeOff,
   Save,
   Shield,
+  MapPin,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import adminAuthService from '../../../services/adminAuthService';
+import { useSocket } from '../../../context/SocketContext';
 
 export default function AdminSettings() {
   const navigate = useNavigate();
+  const { socket } = useSocket() || {};
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -25,11 +27,16 @@ export default function AdminSettings() {
 
   // Profile form state
   const [profile, setProfile] = useState({
-    fullName: '',
+    organization: '',
     email: '',
     phone: '',
-    organization: '',
-    position: '',
+    address: {
+      street: '',
+      city: '',
+      state: '',
+      zip: '',
+      country: '',
+    },
   });
 
   // Password form state
@@ -44,6 +51,26 @@ export default function AdminSettings() {
     loadAdminProfile();
   }, []);
 
+  // Listen for real-time address updates from Socket.io
+  useEffect(() => {
+    if (socket) {
+      socket.on('admin:addressUpdated', (data) => {
+        if (data.address) {
+          setProfile(prev => ({
+            ...prev,
+            address: data.address,
+          }));
+          setMessage({ type: 'success', text: 'Address updated in real-time!' });
+          setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+        }
+      });
+
+      return () => {
+        socket.off('admin:addressUpdated');
+      };
+    }
+  }, [socket]);
+
   const loadAdminProfile = async () => {
     try {
       setIsLoading(true);
@@ -52,11 +79,16 @@ export default function AdminSettings() {
       const profileData = response.data || response;
       if (profileData) {
         setProfile({
-          fullName: profileData.name || '',
+          organization: profileData.department || profileData.organization || '',
           email: profileData.email || '',
           phone: profileData.phone || '',
-          organization: profileData.department || '',
-          position: profileData.position || 'Administrator',
+          address: profileData.address || {
+            street: '',
+            city: '',
+            state: '',
+            zip: '',
+            country: '',
+          },
         });
       }
     } catch (err) {
@@ -65,13 +97,18 @@ export default function AdminSettings() {
       console.error('Profile load error:', err);
       // Load from localStorage as fallback
       const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
-      if (adminUser.name) {
+      if (adminUser.email) {
         setProfile({
-          fullName: adminUser.name || '',
+          organization: adminUser.department || adminUser.organization || '',
           email: adminUser.email || '',
           phone: adminUser.phone || '',
-          organization: adminUser.department || '',
-          position: adminUser.role || 'Administrator',
+          address: adminUser.address || {
+            street: '',
+            city: '',
+            state: '',
+            zip: '',
+            country: '',
+          },
         });
       }
     } finally {
@@ -83,7 +120,19 @@ export default function AdminSettings() {
 
   const handleProfileChange = (e) => {
     const { name, value } = e.target;
-    setProfile(prev => ({ ...prev, [name]: value }));
+    
+    if (name.startsWith('address_')) {
+      const addressField = name.replace('address_', '');
+      setProfile(prev => ({
+        ...prev,
+        address: {
+          ...prev.address,
+          [addressField]: value,
+        },
+      }));
+    } else {
+      setProfile(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handlePasswordChange = (e) => {
@@ -98,35 +147,38 @@ export default function AdminSettings() {
     setSaving(true);
     try {
       const response = await adminAuthService.updateAdminProfile({
-        name: profile.fullName,
         email: profile.email,
         phone: profile.phone,
         department: profile.organization,
+        organization: profile.organization,
+        address: profile.address,
       });
       
       // Update localStorage with new data
       const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
-      adminUser.name = profile.fullName;
       adminUser.email = profile.email;
       adminUser.phone = profile.phone;
       adminUser.department = profile.organization;
+      adminUser.organization = profile.organization;
+      adminUser.address = profile.address;
       localStorage.setItem('adminUser', JSON.stringify(adminUser));
       
       // Dispatch custom event to update sidebar in real-time
       window.dispatchEvent(new CustomEvent('adminProfileUpdated', { 
         detail: { 
-          name: profile.fullName,
           email: profile.email,
           phone: profile.phone,
-          department: profile.organization 
+          organization: profile.organization,
+          address: profile.address,
         } 
       }));
       
-      setMessage({ type: 'success', text: 'Profile updated successfully!' });
+      setMessage({ type: 'success', text: 'Profile saved successfully!' });
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
     } catch (err) {
       const errorMsg = err.message || err.data?.message || 'Failed to update profile';
       setMessage({ type: 'error', text: errorMsg });
+      console.error('Save error:', err);
     } finally {
       setSaving(false);
     }
@@ -205,14 +257,14 @@ export default function AdminSettings() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Full Name *
+                    Organization / Company *
                   </label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                     <input
                       type="text"
-                      name="fullName"
-                      value={profile.fullName}
+                      name="organization"
+                      value={profile.organization}
                       onChange={handleProfileChange}
                       className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-150"
                     />
@@ -251,36 +303,82 @@ export default function AdminSettings() {
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Organization / Company *
-                  </label>
-                  <div className="relative">
-                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              </div>
+
+              {/* Address Section */}
+              <div className="border-t border-gray-200 pt-6">
+                <div className="flex items-center gap-2 mb-5">
+                  <MapPin className="h-5 w-5 text-indigo-600" />
+                  <h3 className="text-md font-semibold text-gray-900">Company Address</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Street Address
+                    </label>
                     <input
                       type="text"
-                      name="organization"
-                      value={profile.organization}
+                      name="address_street"
+                      value={profile.address.street}
                       onChange={handleProfileChange}
-                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-150"
+                      placeholder="123 Business St"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-150"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      City
+                    </label>
+                    <input
+                      type="text"
+                      name="address_city"
+                      value={profile.address.city}
+                      onChange={handleProfileChange}
+                      placeholder="New York"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-150"
                     />
                   </div>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Position
-                  </label>
-                  <div className="relative">
-                    <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-5">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      State/Province
+                    </label>
                     <input
                       type="text"
-                      name="position"
-                      value={profile.position}
+                      name="address_state"
+                      value={profile.address.state}
                       onChange={handleProfileChange}
-                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-150"
+                      placeholder="NY"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-150"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Zip Code
+                    </label>
+                    <input
+                      type="text"
+                      name="address_zip"
+                      value={profile.address.zip}
+                      onChange={handleProfileChange}
+                      placeholder="10001"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-150"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Country
+                    </label>
+                    <input
+                      type="text"
+                      name="address_country"
+                      value={profile.address.country}
+                      onChange={handleProfileChange}
+                      placeholder="United States"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-150"
                     />
                   </div>
                 </div>
