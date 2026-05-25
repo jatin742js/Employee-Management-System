@@ -1,4 +1,4 @@
-import api from './api';
+import adminApi from './adminApi';
 
 // Admin Leave Management Services
 const adminLeaveService = {
@@ -6,7 +6,7 @@ const adminLeaveService = {
   getAllLeaves: async (filters = {}) => {
     try {
       const params = new URLSearchParams(filters).toString();
-      const response = await api.get(`/admin/leaves${params ? `?${params}` : ''}`);
+      const response = await adminApi.get(`/admin/leaves${params ? `?${params}` : ''}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -16,7 +16,7 @@ const adminLeaveService = {
   // Approve leave request
   approveLeave: async (id) => {
     try {
-      const response = await api.put(`/admin/leaves/${id}/approve`);
+      const response = await adminApi.put(`/admin/leaves/${id}/approve`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -26,7 +26,7 @@ const adminLeaveService = {
   // Reject leave request
   rejectLeave: async (id, rejectionReason) => {
     try {
-      const response = await api.put(`/admin/leaves/${id}/reject`, {
+      const response = await adminApi.put(`/admin/leaves/${id}/reject`, {
         rejectionReason,
       });
       return response.data;

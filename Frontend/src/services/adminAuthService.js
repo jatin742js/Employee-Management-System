@@ -1,17 +1,15 @@
-import api from './api';
+import adminApi from './adminApi';
 
 // Admin Authentication Services
 const adminAuthService = {
   // Register admin
   registerAdmin: async (adminData) => {
     try {
-      const response = await api.post('/admin/auth/register', {
+      const response = await adminApi.post('/admin/auth/register', {
         name: adminData.fullName,
         email: adminData.email,
         password: adminData.password,
-        phone: adminData.phone,
-        department: adminData.position || 'Administration',
-        organization: adminData.organization,
+        organization: adminData.fullName, // Use fullName as organization too
       });
       return response.data;
     } catch (error) {
@@ -22,7 +20,7 @@ const adminAuthService = {
   // Login admin
   loginAdmin: async (email, password) => {
     try {
-      const response = await api.post('/admin/auth/login', {
+      const response = await adminApi.post('/admin/auth/login', {
         email,
         password,
       });
@@ -43,7 +41,7 @@ const adminAuthService = {
   // Forgot password
   forgotPassword: async (email, organization, newPassword) => {
     try {
-      const response = await api.post('/admin/auth/forgot-password', {
+      const response = await adminApi.post('/admin/auth/forgot-password', {
         email,
         organization,
         newPassword,
@@ -58,7 +56,7 @@ const adminAuthService = {
   // Get admin profile
   getAdminProfile: async () => {
     try {
-      const response = await api.get('/admin/auth/profile');
+      const response = await adminApi.get('/admin/auth/profile');
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -68,7 +66,7 @@ const adminAuthService = {
   // Update admin profile
   updateAdminProfile: async (profileData) => {
     try {
-      const response = await api.put('/admin/auth/profile', profileData);
+      const response = await adminApi.put('/admin/auth/profile', profileData);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -78,7 +76,7 @@ const adminAuthService = {
   // Change admin password
   changeAdminPassword: async (currentPassword, newPassword, confirmPassword) => {
     try {
-      const response = await api.put('/admin/auth/change-password', {
+      const response = await adminApi.put('/admin/auth/change-password', {
         currentPassword,
         newPassword,
         confirmPassword,

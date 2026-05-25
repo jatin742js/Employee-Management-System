@@ -1,4 +1,4 @@
-import api from './api';
+import employeeApi from './employeeApi';
 
 // Employee Attendance Services
 const employeeAttendanceService = {
@@ -6,7 +6,7 @@ const employeeAttendanceService = {
   getMyAttendance: async (filters = {}) => {
     try {
       const params = new URLSearchParams(filters).toString();
-      const response = await api.get(`/employee/attendance${params ? `?${params}` : ''}`);
+      const response = await employeeApi.get(`/employee/attendance${params ? `?${params}` : ''}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -16,7 +16,7 @@ const employeeAttendanceService = {
   // Check in
   checkIn: async () => {
     try {
-      const response = await api.post('/employee/attendance/check-in');
+      const response = await employeeApi.post('/employee/attendance/check-in');
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -26,7 +26,7 @@ const employeeAttendanceService = {
   // Check out
   checkOut: async () => {
     try {
-      const response = await api.post('/employee/attendance/check-out');
+      const response = await employeeApi.post('/employee/attendance/check-out');
       return response.data;
     } catch (error) {
       throw error.response?.data || error;

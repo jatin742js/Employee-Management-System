@@ -1,4 +1,4 @@
-import api from './api';
+import employeeApi from './employeeApi';
 
 // Employee Payroll Services
 const employeePayrollService = {
@@ -6,7 +6,7 @@ const employeePayrollService = {
   getMyPayroll: async (filters = {}) => {
     try {
       const params = new URLSearchParams(filters).toString();
-      const response = await api.get(`/employee/payroll${params ? `?${params}` : ''}`);
+      const response = await employeeApi.get(`/employee/payroll${params ? `?${params}` : ''}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -16,7 +16,7 @@ const employeePayrollService = {
   // Get payroll details by ID
   getPayrollDetails: async (id) => {
     try {
-      const response = await api.get(`/employee/payroll/${id}`);
+      const response = await employeeApi.get(`/employee/payroll/${id}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -27,7 +27,7 @@ const employeePayrollService = {
   downloadPayslip: async (month, year) => {
     try {
       console.log(`Downloading payslip for ${month}/${year} from /employee/payroll/download`);
-      const response = await api.get(`/employee/payroll/download`, {
+      const response = await employeeApi.get(`/employee/payroll/download`, {
         params: { month, year },
         responseType: 'blob'
       });

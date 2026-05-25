@@ -1,4 +1,4 @@
-import api from './api';
+import adminApi from './adminApi';
 
 // Admin Payroll Management Services
 const adminPayrollService = {
@@ -6,7 +6,7 @@ const adminPayrollService = {
   getAllPayroll: async (filters = {}) => {
     try {
       const params = new URLSearchParams(filters).toString();
-      const response = await api.get(`/admin/payroll${params ? `?${params}` : ''}`);
+      const response = await adminApi.get(`/admin/payroll${params ? `?${params}` : ''}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -16,7 +16,7 @@ const adminPayrollService = {
   // Create payroll record
   createPayroll: async (payrollData) => {
     try {
-      const response = await api.post('/admin/payroll', payrollData);
+      const response = await adminApi.post('/admin/payroll', payrollData);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -26,7 +26,7 @@ const adminPayrollService = {
   // Update payroll status
   updatePayrollStatus: async (id, paymentStatus, paymentDate) => {
     try {
-      const response = await api.put(`/admin/payroll/${id}/status`, {
+      const response = await adminApi.put(`/admin/payroll/${id}/status`, {
         paymentStatus,
         paymentDate,
       });

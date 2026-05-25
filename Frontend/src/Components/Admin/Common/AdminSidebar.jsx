@@ -35,7 +35,6 @@ const AdminSidebar = () => {
         email: stored?.email || 'admin@company.com',
         organization: stored?.organization || 'Organization',
         role: stored?.role || 'Administrator',
-        department: stored?.department || 'Administration',
       };
     } catch {
       return {
@@ -43,7 +42,6 @@ const AdminSidebar = () => {
         email: 'admin@company.com',
         organization: 'Organization',
         role: 'Administrator',
-        department: 'Administration',
       };
     }
   });
@@ -57,7 +55,6 @@ const AdminSidebar = () => {
           email: stored.email || 'admin@company.com',
           organization: stored.organization || 'Organization',
           role: stored.role || 'Administrator',
-          department: stored.department || 'Administration',
         });
       }
     } catch {
@@ -74,7 +71,6 @@ const AdminSidebar = () => {
         name: detail.name || prev.name,
         email: detail.email || prev.email,
         organization: detail.organization || prev.organization,
-        department: detail.department || prev.department,
       }));
     };
 

@@ -147,6 +147,14 @@ const Dashboard = () => {
       loadNotifications();
     };
 
+    socket.on('company:infoUpdated', (data) => {
+      console.log('Company info updated:', data);
+      setEmployeeData(prev => ({
+        ...prev,
+        company: data.organization || prev.company,
+      }));
+    });
+
     socket.on('payroll:notified', (data) => {
       console.log('Payroll notification received:', data);
       refreshNotifications();
@@ -192,6 +200,7 @@ const Dashboard = () => {
     });
 
     return () => {
+      socket.off('company:infoUpdated');
       socket.off('payroll:notified');
       socket.off('payroll:updated');
       socket.off('payroll:statusUpdated');
@@ -216,7 +225,7 @@ const Dashboard = () => {
           name: profileData.name || 'Employee',
           role: profileData.position || 'Employee',
           department: profileData.department || 'General',
-          company: 'TechCorp Inc.',
+          company: profileData.admin?.organization || 'Company',
           joinDate: profileData.joinDate || 'N/A',
         });
       }

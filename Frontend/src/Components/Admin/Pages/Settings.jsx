@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   User,
   Mail,
-  Phone,
   Building2,
   Lock,
   Eye,
@@ -29,7 +28,6 @@ export default function AdminSettings() {
   const [profile, setProfile] = useState({
     organization: '',
     email: '',
-    phone: '',
     address: {
       street: '',
       city: '',
@@ -79,9 +77,8 @@ export default function AdminSettings() {
       const profileData = response.data || response;
       if (profileData) {
         setProfile({
-          organization: profileData.department || profileData.organization || '',
+          organization: profileData.organization || '',
           email: profileData.email || '',
-          phone: profileData.phone || '',
           address: profileData.address || {
             street: '',
             city: '',
@@ -99,9 +96,8 @@ export default function AdminSettings() {
       const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
       if (adminUser.email) {
         setProfile({
-          organization: adminUser.department || adminUser.organization || '',
+          organization: adminUser.organization || '',
           email: adminUser.email || '',
-          phone: adminUser.phone || '',
           address: adminUser.address || {
             street: '',
             city: '',
@@ -148,8 +144,6 @@ export default function AdminSettings() {
     try {
       const response = await adminAuthService.updateAdminProfile({
         email: profile.email,
-        phone: profile.phone,
-        department: profile.organization,
         organization: profile.organization,
         address: profile.address,
       });
@@ -157,8 +151,6 @@ export default function AdminSettings() {
       // Update localStorage with new data
       const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
       adminUser.email = profile.email;
-      adminUser.phone = profile.phone;
-      adminUser.department = profile.organization;
       adminUser.organization = profile.organization;
       adminUser.address = profile.address;
       localStorage.setItem('adminUser', JSON.stringify(adminUser));
@@ -167,7 +159,6 @@ export default function AdminSettings() {
       window.dispatchEvent(new CustomEvent('adminProfileUpdated', { 
         detail: { 
           email: profile.email,
-          phone: profile.phone,
           organization: profile.organization,
           address: profile.address,
         } 
@@ -280,24 +271,6 @@ export default function AdminSettings() {
                       type="email"
                       name="email"
                       value={profile.email}
-                      onChange={handleProfileChange}
-                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-150"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Phone Number
-                  </label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={profile.phone}
                       onChange={handleProfileChange}
                       className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-150"
                     />

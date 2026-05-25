@@ -1,11 +1,11 @@
-import api from './api';
+import employeeApi from './employeeApi';
 
 // Employee Authentication Services
 const employeeAuthService = {
   // Get employee profile
   getEmployeeProfile: async () => {
     try {
-      const response = await api.get('/employee/auth/profile');
+      const response = await employeeApi.get('/employee/auth/profile');
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -15,7 +15,7 @@ const employeeAuthService = {
   // Update employee profile
   updateEmployeeProfile: async (profileData) => {
     try {
-      const response = await api.put('/employee/auth/profile', profileData);
+      const response = await employeeApi.put('/employee/auth/profile', profileData);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -25,7 +25,7 @@ const employeeAuthService = {
   // Change password
   changeEmployeePassword: async (passwords) => {
     try {
-      const response = await api.put('/employee/auth/change-password', passwords);
+      const response = await employeeApi.put('/employee/auth/change-password', passwords);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -35,7 +35,7 @@ const employeeAuthService = {
   // Login employee
   loginEmployee: async (email, password) => {
     try {
-      const response = await api.post('/employee/auth/login', {
+      const response = await employeeApi.post('/employee/auth/login', {
         email,
         password,
       });
@@ -54,7 +54,7 @@ const employeeAuthService = {
   // Register employee
   registerEmployee: async (employeeData) => {
     try {
-      const response = await api.post('/employee/auth/register', employeeData);
+      const response = await employeeApi.post('/employee/auth/register', employeeData);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;

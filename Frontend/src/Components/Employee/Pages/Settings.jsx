@@ -66,7 +66,7 @@ export default function EmployeeSettings() {
           phone: data.phone || '',
           employeeId: data.employeeId || '',
           department: data.department || '',
-          organization: data.organization || '',
+          organization: data.admin?.organization || '',
           position: data.position || '',
         };
         

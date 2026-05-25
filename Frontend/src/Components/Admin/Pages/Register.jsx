@@ -14,8 +14,6 @@ export default function AdminRegister() {
     fullName: '',
     email: '',
     organization: '',
-    position: '',
-    phone: '',
     password: '',
     confirmPassword: '',
     agreeTerms: false,
@@ -55,7 +53,7 @@ export default function AdminRegister() {
 
     // Validation
     if (!formData.fullName.trim()) {
-      setError('Full name is required');
+      setError('Organization / Company is required');
       return;
     }
 
@@ -67,11 +65,6 @@ export default function AdminRegister() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
       setError('Please enter a valid email address');
-      return;
-    }
-
-    if (!formData.organization.trim()) {
-      setError('Organization name is required');
       return;
     }
 
@@ -152,10 +145,10 @@ export default function AdminRegister() {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Essential Info - Two Column Layout */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* Full Name */}
+                {/* Organization / Company */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Full Name *
+                    Organization / Company *
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -166,7 +159,7 @@ export default function AdminRegister() {
                       name="fullName"
                       value={formData.fullName}
                       onChange={handleChange}
-                      placeholder="John Doe"
+                      placeholder="Your Company Name"
                       required
                       className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-150"
                     />
@@ -195,66 +188,7 @@ export default function AdminRegister() {
                 </div>
               </div>
 
-              {/* Organization & Position & Phone - Three Column Layout */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                {/* Organization */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Organization / Company *
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Building2 className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <input
-                      type="text"
-                      name="organization"
-                      value={formData.organization}
-                      onChange={handleChange}
-                      placeholder="Your Company Name"
-                      required
-                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-150"
-                    />
-                  </div>
-                </div>
 
-                {/* Position */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Position / Role
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Briefcase className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <input
-                      type="text"
-                      name="position"
-                      value={formData.position}
-                      onChange={handleChange}
-                      placeholder="HR Manager, IT Admin, etc."
-                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-150"
-                    />
-                  </div>
-                </div>
-
-                {/* Phone */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Phone Number
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      placeholder="+1 (555) 123-4567"
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-150"
-                    />
-                  </div>
-                </div>
-              </div>
 
               {/* Password Fields - Two Column Layout */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

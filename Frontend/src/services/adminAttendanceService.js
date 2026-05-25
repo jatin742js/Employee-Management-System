@@ -1,4 +1,4 @@
-import api from './api';
+import adminApi from './adminApi';
 
 // Admin Attendance Management Services
 const adminAttendanceService = {
@@ -6,7 +6,7 @@ const adminAttendanceService = {
   getAttendance: async (filters = {}) => {
     try {
       const params = new URLSearchParams(filters).toString();
-      const response = await api.get(`/admin/attendance${params ? `?${params}` : ''}`);
+      const response = await adminApi.get(`/admin/attendance${params ? `?${params}` : ''}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -16,7 +16,7 @@ const adminAttendanceService = {
   // Record attendance
   recordAttendance: async (attendanceData) => {
     try {
-      const response = await api.post('/admin/attendance', attendanceData);
+      const response = await adminApi.post('/admin/attendance', attendanceData);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
