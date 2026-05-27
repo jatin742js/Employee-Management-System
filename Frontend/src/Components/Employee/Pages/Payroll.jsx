@@ -357,15 +357,28 @@ const PayrollPage = () => {
       element.style.position = 'absolute';
       element.style.left = '0';
       element.style.top = '0';
+      element.style.margin = '0';
+      element.style.padding = '0';
       element.style.width = '210mm';
-      element.style.opacity = '0';
-      element.style.pointerEvents = 'none';
-      element.style.zIndex = '-1000';
+      element.style.height = '297mm';
+      element.style.display = 'block';
+      element.style.visibility = 'hidden';
 
-      document.body.appendChild(element);
-      await new Promise(resolve => setTimeout(resolve, 200));
+      const wrapper = document.createElement('div');
+      wrapper.style.position = 'absolute';
+      wrapper.style.left = '-999999px';
+      wrapper.style.top = '0';
+      wrapper.style.width = '210mm';
+      wrapper.style.height = '297mm';
+      wrapper.style.margin = '0';
+      wrapper.style.padding = '0';
+      wrapper.style.overflow = 'hidden';
+      wrapper.appendChild(element);
 
-      const slipElement = element.querySelector('.salary-slip');
+      document.body.appendChild(wrapper);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      const slipElement = wrapper.querySelector('.salary-slip');
       console.log('Slip element:', slipElement);
 
       const canvas = await html2canvas(slipElement, {
@@ -375,7 +388,9 @@ const PayrollPage = () => {
         logging: false,
         backgroundColor: '#ffffff',
         windowHeight: slipElement.scrollHeight,
-        windowWidth: slipElement.scrollWidth,
+        windowWidth: '210mm',
+        width: 794,
+        height: 1122,
       });
 
       const pdf = new jsPDF({ 
@@ -388,15 +403,14 @@ const PayrollPage = () => {
       const imgData = canvas.toDataURL('image/jpeg', 0.95);
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 5;
-      const imgWidth = pageWidth - (margin * 2);
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const imgWidth = pageWidth;
+      const imgHeight = pageHeight;
       
-      pdf.addImage(imgData, 'JPEG', margin, margin, imgWidth, imgHeight);
+      pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
       pdf.save(`Payslip_${employeeId}_${monthName}_${yearStr}.pdf`);
 
-      if (document.body.contains(element)) {
-        document.body.removeChild(element);
+      if (document.body.contains(wrapper)) {
+        document.body.removeChild(wrapper);
       }
       setDownloadingId(null);
     } catch (error) {

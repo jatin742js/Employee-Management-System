@@ -6,14 +6,13 @@ const { asyncHandler } = require("../utils/errorHandler");
 // @desc    Register new admin
 // @access  Public
 exports.registerAdmin = asyncHandler(async (req, res) => {
-  const { name, email, password, phone, department, organization } = req.body;
+  const { name, email, password, phone, organization } = req.body;
 
   const result = await AdminAuthService.registerAdmin({
     name,
     email,
     password,
     phone,
-    department,
     organization,
   });
 
@@ -44,13 +43,11 @@ exports.getAdminProfile = asyncHandler(async (req, res) => {
 // @desc    Update admin profile
 // @access  Private/Admin
 exports.updateAdminProfile = asyncHandler(async (req, res) => {
-  const { name, email, phone, department, organization, address } = req.body;
+  const { name, email, organization, address } = req.body;
 
   const admin = await AdminAuthService.updateAdminProfile(req.user.id, {
     name,
     email,
-    phone,
-    department,
     organization,
     address,
   });

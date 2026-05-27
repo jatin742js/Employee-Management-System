@@ -7,6 +7,11 @@ const payrollSchema = new mongoose.Schema(
       ref: "Employee",
       required: true,
     },
+    admin: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
+    },
     month: {
       type: String,
       required: true, // Format: YYYY-MM

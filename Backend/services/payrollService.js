@@ -5,7 +5,10 @@ const { emitToAdmin, emitToEmployee } = require("../utils/socketEmitter");
 
 class PayrollService {
   // Get all payroll records with filters
-  static async getAllPayroll(filters = {}) {
+  static async getAllPayroll(filters = {}, adminId = null) {
+    if (adminId) {
+      filters.admin = adminId;
+    }
     const payroll = await Payroll.find(filters)
       .populate("employee", "name employeeId email department bankAccount dateOfJoining position role")
       .sort({ month: -1 });
@@ -60,6 +63,7 @@ class PayrollService {
       allowancesBreakdown: allowancesBreakdown || [],
       deductionsBreakdown: deductionsBreakdown || [],
       bankAccount: bankAccount || "",
+      admin: adminId,
     });
 
     // Create notification for admin

@@ -3,8 +3,11 @@ const { emitToAllAdmins } = require("../utils/socketEmitter");
 
 class EmployeeService {
   // Get all employees
-  static async getAllEmployees(filters = {}) {
+  static async getAllEmployees(filters = {}, adminId = null) {
     const query = { isActive: true, ...filters };
+    if (adminId) {
+      query.admin = adminId;
+    }
     const employees = await Employee.find(query)
       .select("-password")
       .populate("manager", "name email");
@@ -25,7 +28,7 @@ class EmployeeService {
   }
 
   // Create new employee
-  static async createEmployee(employeeData) {
+  static async createEmployee(employeeData, adminId) {
     const {
       name,
       email,
@@ -76,6 +79,7 @@ class EmployeeService {
       address,
       officeStartTime: officeStartTime || "09:00",
       officeEndTime: officeEndTime || "18:00",
+      admin: adminId,
       plainPassword: password, // Store original password for admin viewing
     });
 
@@ -257,16 +261,24 @@ class EmployeeService {
   }
 
   // Get total employees count
-  static async getTotalEmployeesCount() {
-    return await Employee.countDocuments({ isActive: true });
+  static async getTotalEmployeesCount(adminId = null) {
+    const filters = { isActive: true };
+    if (adminId) {
+      filters.admin = adminId;
+    }
+    return await Employee.countDocuments(filters);
   }
 
   // Get count of unique active departments
-  static async getDepartmentsCount() {
-    const departments = await Employee.distinct("department", {
+  static async getDepartmentsCount(adminId = null) {
+    const filters = {
       isActive: true,
       department: { $exists: true, $nin: [null, ""] },
-    });
+    };
+    if (adminId) {
+      filters.admin = adminId;
+    }
+    const departments = await Employee.distinct("department", filters);
 
     return departments.length;
   }

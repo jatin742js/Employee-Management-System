@@ -85,6 +85,11 @@ const employeeSchema = new mongoose.Schema(
       ref: "Employee",
       default: null,
     },
+    admin: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
+    },
     isActive: {
       type: Boolean,
       default: true,

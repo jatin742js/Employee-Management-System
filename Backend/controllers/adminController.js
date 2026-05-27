@@ -10,7 +10,7 @@ const { emitToAdmin, emitToEmployee } = require("../utils/socketEmitter");
 // ============ EMPLOYEE MANAGEMENT ============
 
 // @route   GET /api/admin/employees
-// @desc    Get all employees
+// @desc    Get all employees for this admin
 // @access  Private/Admin
 exports.getAllEmployees = asyncHandler(async (req, res) => {
   const { department, position } = req.query;
@@ -19,7 +19,7 @@ exports.getAllEmployees = asyncHandler(async (req, res) => {
   if (department) filters.department = department;
   if (position) filters.position = position;
 
-  const employees = await EmployeeService.getAllEmployees(filters);
+  const employees = await EmployeeService.getAllEmployees(filters, req.user.id);
 
   successResponse(res, 200, "Employees retrieved successfully", {
     count: employees.length,
@@ -28,10 +28,15 @@ exports.getAllEmployees = asyncHandler(async (req, res) => {
 });
 
 // @route   GET /api/admin/employees/:id
-// @desc    Get single employee (includes password for admin viewing)
+// @desc    Get single employee (includes password for admin viewing) - only own employees
 // @access  Private/Admin
 exports.getEmployeeById = asyncHandler(async (req, res) => {
   const employee = await EmployeeService.getEmployeeById(req.params.id);
+
+  // Verify this employee belongs to the current admin
+  if (employee.admin.toString() !== req.user.id) {
+    return errorResponse(res, 403, "You do not have access to this employee's data");
+  }
 
   successResponse(res, 200, "Employee retrieved successfully", employee);
   // Note: Password is included for admin viewing in details/edit modal
@@ -41,42 +46,78 @@ exports.getEmployeeById = asyncHandler(async (req, res) => {
 // @desc    Create new employee
 // @access  Private/Admin
 exports.createEmployee = asyncHandler(async (req, res) => {
-  const result = await EmployeeService.createEmployee(req.body);
+  const result = await EmployeeService.createEmployee(req.body, req.user.id);
 
   successResponse(res, 201, "Employee created successfully", result);
 });
 
 // @route   PUT /api/admin/employees/:id
-// @desc    Update employee
+// @desc    Update employee - only own employees
 // @access  Private/Admin
 exports.updateEmployee = asyncHandler(async (req, res) => {
+  // First verify the employee belongs to this admin
+  const existingEmployee = await require("../models/Employee").findById(req.params.id);
+  if (!existingEmployee) {
+    return errorResponse(res, 404, "Employee not found");
+  }
+  if (existingEmployee.admin.toString() !== req.user.id) {
+    return errorResponse(res, 403, "You do not have access to update this employee");
+  }
+
   const employee = await EmployeeService.updateEmployee(req.params.id, req.body);
 
   successResponse(res, 200, "Employee updated successfully", employee);
 });
 
 // @route   PUT /api/admin/employees/:id/deactivate
-// @desc    Deactivate employee
+// @desc    Deactivate employee - only own employees
 // @access  Private/Admin
 exports.deactivateEmployee = asyncHandler(async (req, res) => {
+  // First verify the employee belongs to this admin
+  const existingEmployee = await require("../models/Employee").findById(req.params.id);
+  if (!existingEmployee) {
+    return errorResponse(res, 404, "Employee not found");
+  }
+  if (existingEmployee.admin.toString() !== req.user.id) {
+    return errorResponse(res, 403, "You do not have access to deactivate this employee");
+  }
+
   const employee = await EmployeeService.deactivateEmployee(req.params.id);
 
   successResponse(res, 200, "Employee deactivated successfully", employee);
 });
 
 // @route   PUT /api/admin/employees/:id/activate
-// @desc    Activate employee
+// @desc    Activate employee - only own employees
 // @access  Private/Admin
 exports.activateEmployee = asyncHandler(async (req, res) => {
+  // First verify the employee belongs to this admin
+  const existingEmployee = await require("../models/Employee").findById(req.params.id);
+  if (!existingEmployee) {
+    return errorResponse(res, 404, "Employee not found");
+  }
+  if (existingEmployee.admin.toString() !== req.user.id) {
+    return errorResponse(res, 403, "You do not have access to activate this employee");
+  }
+
   const employee = await EmployeeService.activateEmployee(req.params.id);
 
   successResponse(res, 200, "Employee activated successfully", employee);
 });
 
 // @route   DELETE /api/admin/employees/:id
-// @desc    Delete employee permanently
+// @desc    Delete employee permanently - only own employees
 // @access  Private/Admin
 exports.deleteEmployee = asyncHandler(async (req, res) => {
+  // First verify the employee belongs to this admin
+  const existingEmployee = await require("../models/Employee").findById(req.params.id);
+  if (!existingEmployee) {
+    return errorResponse(res, 404, "Employee not found");
+  }
+  if (existingEmployee.admin.toString() !== req.user.id) {
+    return errorResponse(res, 403, "You do not have access to delete this employee");
+  }
+
   const result = await EmployeeService.deleteEmployee(req.params.id);
 
   successResponse(res, 200, "Employee deleted successfully", result);
@@ -85,7 +126,7 @@ exports.deleteEmployee = asyncHandler(async (req, res) => {
 // ============ ATTENDANCE MANAGEMENT ============
 
 // @route   GET /api/admin/attendance
-// @desc    Get attendance records
+// @desc    Get attendance records for this admin
 // @access  Private/Admin
 exports.getAttendance = asyncHandler(async (req, res) => {
   const { employeeId, fromDate, toDate } = req.query;
@@ -104,7 +145,7 @@ exports.getAttendance = asyncHandler(async (req, res) => {
     };
   }
 
-  const attendance = await AttendanceService.getAttendance(filters);
+  const attendance = await AttendanceService.getAttendance(filters, req.user.id);
 
   successResponse(res, 200, "Attendance records retrieved successfully", {
     count: attendance.length,
@@ -116,7 +157,7 @@ exports.getAttendance = asyncHandler(async (req, res) => {
 // @desc    Record attendance
 // @access  Private/Admin
 exports.recordAttendance = asyncHandler(async (req, res) => {
-  const attendance = await AttendanceService.recordAttendance(req.body);
+  const attendance = await AttendanceService.recordAttendance(req.body, req.user.id);
 
   successResponse(res, 201, "Attendance recorded successfully", attendance);
 });
@@ -124,7 +165,7 @@ exports.recordAttendance = asyncHandler(async (req, res) => {
 // ============ LEAVE MANAGEMENT ============
 
 // @route   GET /api/admin/leaves
-// @desc    Get all leave requests
+// @desc    Get all leave requests for this admin
 // @access  Private/Admin
 exports.getAllLeaves = asyncHandler(async (req, res) => {
   const { status, employeeId } = req.query;
@@ -133,7 +174,7 @@ exports.getAllLeaves = asyncHandler(async (req, res) => {
   if (status) filters.status = status;
   if (employeeId) filters.employee = employeeId;
 
-  const leaves = await LeaveService.getAllLeaves(filters);
+  const leaves = await LeaveService.getAllLeaves(filters, req.user.id);
 
   successResponse(res, 200, "Leave requests retrieved successfully", {
     count: leaves.length,
@@ -168,7 +209,7 @@ exports.rejectLeave = asyncHandler(async (req, res) => {
 // ============ PAYROLL MANAGEMENT ============
 
 // @route   GET /api/admin/payroll
-// @desc    Get payroll records
+// @desc    Get payroll records for this admin
 // @access  Private/Admin
 exports.getAllPayroll = asyncHandler(async (req, res) => {
   const { employeeId, month } = req.query;
@@ -177,7 +218,7 @@ exports.getAllPayroll = asyncHandler(async (req, res) => {
   if (employeeId) filters.employee = employeeId;
   if (month) filters.month = month;
 
-  const payroll = await PayrollService.getAllPayroll(filters);
+  const payroll = await PayrollService.getAllPayroll(filters, req.user.id);
 
   successResponse(res, 200, "Payroll records retrieved successfully", {
     count: payroll.length,
@@ -233,13 +274,13 @@ exports.updatePayrollStatus = asyncHandler(async (req, res) => {
 });
 
 // @route   GET /api/admin/dashboard/stats
-// @desc    Get dashboard statistics
+// @desc    Get dashboard statistics for this admin
 // @access  Private/Admin
 exports.getDashboardStats = asyncHandler(async (req, res) => {
-  const totalEmployees = await EmployeeService.getTotalEmployeesCount();
-  const departmentsCount = await EmployeeService.getDepartmentsCount();
-  const todayAttendance = await AttendanceService.getTodayAttendanceCount();
-  const pendingLeaves = await LeaveService.getPendingLeavesCount();
+  const totalEmployees = await EmployeeService.getTotalEmployeesCount(req.user.id);
+  const departmentsCount = await EmployeeService.getDepartmentsCount(req.user.id);
+  const todayAttendance = await AttendanceService.getTodayAttendanceCount(req.user.id);
+  const pendingLeaves = await LeaveService.getPendingLeavesCount(req.user.id);
 
   successResponse(res, 200, "Dashboard stats retrieved successfully", {
     totalEmployees,

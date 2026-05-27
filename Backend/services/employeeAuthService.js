@@ -91,7 +91,9 @@ class EmployeeAuthService {
 
   // Get employee profile
   static async getEmployeeProfile(employeeId) {
-    const employee = await Employee.findById(employeeId).select("-password");
+    const employee = await Employee.findById(employeeId)
+      .select("-password")
+      .populate("admin", "organization");
     if (!employee) {
       throw new Error("Employee not found");
     }

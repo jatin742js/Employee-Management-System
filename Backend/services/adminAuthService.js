@@ -4,7 +4,7 @@ const { generateToken } = require("../utils/tokenUtils");
 class AdminAuthService {
   // Register new admin
   static async registerAdmin(adminData) {
-    const { name, email, password, phone, department, organization } = adminData;
+    const { name, email, password, phone, organization } = adminData;
 
     // Check if admin exists
     const existingAdmin = await Admin.findOne({ email });
@@ -18,7 +18,6 @@ class AdminAuthService {
       email,
       password,
       phone,
-      department,
       organization,
     });
 
@@ -32,7 +31,6 @@ class AdminAuthService {
         name: admin.name,
         email: admin.email,
         role: admin.role,
-        department: admin.department,
         organization: admin.organization,
       },
     };
@@ -62,7 +60,6 @@ class AdminAuthService {
         name: admin.name,
         email: admin.email,
         role: admin.role,
-        department: admin.department,
         organization: admin.organization,
       },
     };
@@ -79,12 +76,10 @@ class AdminAuthService {
 
   // Update admin profile
   static async updateAdminProfile(adminId, updateData) {
-    const { name, email, phone, department, organization, address } = updateData;
+    const { name, email, organization, address } = updateData;
 
     const updateFields = {
       email,
-      phone,
-      department,
       organization,
     };
 

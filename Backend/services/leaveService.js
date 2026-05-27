@@ -3,7 +3,10 @@ const { calculateDaysBetween } = require("../utils/helpers");
 
 class LeaveService {
   // Get all leaves with filters
-  static async getAllLeaves(filters = {}) {
+  static async getAllLeaves(filters = {}, adminId = null) {
+    if (adminId) {
+      filters.admin = adminId;
+    }
     const leaves = await Leave.find(filters)
       .populate("employee", "name employeeId email")
       .populate("approvedBy", "name email")
@@ -24,7 +27,7 @@ class LeaveService {
   }
 
   // Request leave
-  static async requestLeave(leaveData) {
+  static async requestLeave(leaveData, adminId) {
     const { employee, leaveType, startDate, endDate, numberOfDays, reason } =
       leaveData;
 
@@ -43,6 +46,7 @@ class LeaveService {
       endDate: new Date(endDate),
       numberOfDays,
       reason,
+      admin: adminId,
     });
 
     return leave;
@@ -83,8 +87,12 @@ class LeaveService {
   }
 
   // Get pending leaves count
-  static async getPendingLeavesCount() {
-    return await Leave.countDocuments({ status: "pending" });
+  static async getPendingLeavesCount(adminId = null) {
+    const filters = { status: "pending" };
+    if (adminId) {
+      filters.admin = adminId;
+    }
+    return await Leave.countDocuments(filters);
   }
 
   // Get leave details

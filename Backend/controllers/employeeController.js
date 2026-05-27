@@ -44,7 +44,14 @@ exports.getMyAttendance = asyncHandler(async (req, res) => {
 // @desc    Check in
 // @access  Private/Employee
 exports.checkIn = asyncHandler(async (req, res) => {
-  const attendance = await AttendanceService.checkIn(req.user.id);
+  const Employee = require("../models/Employee");
+  const employee = await Employee.findById(req.user.id);
+  
+  if (!employee) {
+    return errorResponse(res, 404, "Employee not found");
+  }
+
+  const attendance = await AttendanceService.checkIn(req.user.id, employee.admin);
 
   successResponse(res, 200, "Checked in successfully", attendance);
 });
@@ -53,7 +60,14 @@ exports.checkIn = asyncHandler(async (req, res) => {
 // @desc    Check out
 // @access  Private/Employee
 exports.checkOut = asyncHandler(async (req, res) => {
-  const attendance = await AttendanceService.checkOut(req.user.id);
+  const Employee = require("../models/Employee");
+  const employee = await Employee.findById(req.user.id);
+  
+  if (!employee) {
+    return errorResponse(res, 404, "Employee not found");
+  }
+
+  const attendance = await AttendanceService.checkOut(req.user.id, employee.admin);
 
   successResponse(res, 200, "Checked out successfully", attendance);
 });
@@ -81,6 +95,13 @@ exports.getMyLeaves = asyncHandler(async (req, res) => {
 // @desc    Request leave
 // @access  Private/Employee
 exports.requestLeave = asyncHandler(async (req, res) => {
+  const Employee = require("../models/Employee");
+  const employee = await Employee.findById(req.user.id);
+  
+  if (!employee) {
+    return errorResponse(res, 404, "Employee not found");
+  }
+
   const {
     leaveType,
     startDate,
@@ -96,7 +117,7 @@ exports.requestLeave = asyncHandler(async (req, res) => {
     endDate,
     numberOfDays,
     reason,
-  });
+  }, employee.admin);
 
   successResponse(res, 201, "Leave request submitted successfully", leave);
 });

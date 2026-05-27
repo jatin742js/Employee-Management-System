@@ -4,7 +4,10 @@ const { getIO } = require("../utils/socketEmitter");
 
 class AttendanceService {
   // Get attendance with filters
-  static async getAttendance(filters = {}) {
+  static async getAttendance(filters = {}, adminId = null) {
+    if (adminId) {
+      filters.admin = adminId;
+    }
     const attendance = await Attendance.find(filters)
       .populate("employee", "name employeeId email department")
       .sort({ date: -1 });
@@ -13,7 +16,7 @@ class AttendanceService {
   }
 
   // Record attendance
-  static async recordAttendance(attendanceData) {
+  static async recordAttendance(attendanceData, adminId) {
     const { employee, date, status, checkInTime, checkOutTime, remarks } =
       attendanceData;
 
@@ -24,13 +27,14 @@ class AttendanceService {
       checkInTime,
       checkOutTime,
       remarks,
+      admin: adminId,
     });
 
     return attendance;
   }
 
   // Check in employee
-  static async checkIn(employeeId) {
+  static async checkIn(employeeId, adminId) {
     const Employee = require("../models/Employee");
     const todayRange = getTodayRange();
 
@@ -38,6 +42,7 @@ class AttendanceService {
     let attendance = await Attendance.findOne({
       employee: employeeId,
       date: todayRange,
+      admin: adminId,
     });
 
     if (attendance && attendance.checkInTime) {
@@ -76,6 +81,7 @@ class AttendanceService {
         checkInTime,
         isLate,
         lateBy,
+        admin: adminId,
       });
     } else {
       attendance.checkInTime = checkInTime;
@@ -100,12 +106,13 @@ class AttendanceService {
   }
 
   // Check out employee
-  static async checkOut(employeeId) {
+  static async checkOut(employeeId, adminId) {
     const todayRange = getTodayRange();
 
     const attendance = await Attendance.findOne({
       employee: employeeId,
       date: todayRange,
+      admin: adminId,
     });
 
     if (!attendance) {
@@ -165,13 +172,17 @@ class AttendanceService {
   }
 
   // Get today attendance count
-  static async getTodayAttendanceCount() {
+  static async getTodayAttendanceCount(adminId = null) {
     const todayRange = getTodayRange();
-
-    return await Attendance.countDocuments({
+    const filters = {
       date: todayRange,
       status: "present",
-    });
+    };
+    if (adminId) {
+      filters.admin = adminId;
+    }
+
+    return await Attendance.countDocuments(filters);
   }
 
   // Update attendance
