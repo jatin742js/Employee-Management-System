@@ -239,7 +239,7 @@ export default function AdminSettings() {
         )}
 
         {/* Profile Section */}
-        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden mb-6">
+        <div className="bg-white  shadow-2xl overflow-hidden mb-6">
           <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
             <h2 className="text-lg font-semibold text-gray-900">Profile Information</h2>
           </div>
@@ -376,7 +376,7 @@ export default function AdminSettings() {
         </div>
 
         {/* Password Section */}
-        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div className="bg-white shadow-2xl overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
             <h2 className="text-lg font-semibold text-gray-900">Change Password</h2>
           </div>

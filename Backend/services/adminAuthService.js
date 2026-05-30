@@ -32,6 +32,7 @@ class AdminAuthService {
         email: admin.email,
         role: admin.role,
         organization: admin.organization,
+        address: admin.address,
       },
     };
   }
@@ -61,6 +62,7 @@ class AdminAuthService {
         email: admin.email,
         role: admin.role,
         organization: admin.organization,
+        address: admin.address,
       },
     };
   }

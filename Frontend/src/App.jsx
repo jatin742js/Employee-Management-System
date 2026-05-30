@@ -1,6 +1,9 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { SocketProvider } from './context/SocketContext'
+
+// Welcome Page
+import WelcomePage from './Components/WelcomePage'
 
 // Employee Components
 import EmployeeLogin from './Components/Employee/Pages/Login'
@@ -23,6 +26,36 @@ import AdminLeaveManagement from './Components/Admin/Pages/LeaveManagement'
 import AdminPayroll from './Components/Admin/Pages/Payroll'
 import AdminSettings from './Components/Admin/Pages/Settings'
 import AdminLayout from './Components/Admin/Layout/AdminLayout'
+
+// Protected Route Component for root path
+const RootRoute = () => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [redirectPath, setRedirectPath] = useState(null);
+
+  useEffect(() => {
+    const adminToken = localStorage.getItem('adminToken');
+    const employeeToken = localStorage.getItem('employeeToken');
+
+    if (adminToken) {
+      setRedirectPath('/admin/dashboard');
+    } else if (employeeToken) {
+      setRedirectPath('/employee/dashboard');
+    } else {
+      setRedirectPath(null);
+    }
+    setIsLoading(false);
+  }, []);
+
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
+  if (redirectPath) {
+    return <Navigate to={redirectPath} replace />;
+  }
+
+  return <WelcomePage />;
+};
 
 const App = () => {
   return (
@@ -53,11 +86,11 @@ const App = () => {
             <Route path="settings" element={<Settings />} />
           </Route>
 
-          {/* Default redirect to Employee Login */}
-          <Route path="/" element={<Navigate to="/employee/login" />} />
+          {/* Welcome/Portal Selection Page - with authentication check */}
+          <Route path="/" element={<RootRoute />} />
           
           {/* Catch-all for undefined routes */}
-          <Route path="*" element={<Navigate to="/employee/login" />} />
+          <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Router>
     </SocketProvider>

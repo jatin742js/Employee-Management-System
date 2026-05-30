@@ -129,14 +129,26 @@ export default function Payroll() {
       
       const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
       const companyName = adminUser.organization || 'EMPLOYEE MANAGEMENT SYSTEM';
-      const companyAddress = adminUser.address || {};
-      const companyAddressLine = [
-        companyAddress.street,
-        companyAddress.city,
-        companyAddress.state,
-        companyAddress.zip,
-        companyAddress.country
-      ].filter(Boolean).join(', ') || 'Pune, India';
+      
+      // Get address from different possible structures
+      let companyAddressLine = '';
+      if (adminUser.address && typeof adminUser.address === 'object') {
+        const companyAddress = adminUser.address;
+        companyAddressLine = [
+          companyAddress.street,
+          companyAddress.city,
+          companyAddress.state,
+          companyAddress.zip,
+          companyAddress.country
+        ].filter(Boolean).join(', ');
+      } else if (adminUser.address && typeof adminUser.address === 'string') {
+        companyAddressLine = adminUser.address;
+      }
+      
+      // Fallback if no address found
+      if (!companyAddressLine) {
+        companyAddressLine = adminUser.companyAddress || adminUser.addressLine || 'Pune, India';
+      }
       
       const employeeName = payslip.employee?.name || 'Employee';
       const employeeId = payslip.employee?.employeeId || 'N/A';
@@ -172,39 +184,71 @@ export default function Payroll() {
         <head>
           <meta charset="UTF-8">
           <style>
+            @charset "UTF-8";
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
-            .salary-slip { width: 210mm; height: 297mm; padding: 30px 40px; background: #ffffff; }
-            .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; border-bottom: 2px solid #d0dce5; padding-bottom: 20px; }
-            .company-header h1 { font-size: 24px; font-weight: 700; color: #0b3954; margin-bottom: 8px; }
-            .company-header p { font-size: 12px; color: #5a7285; margin: 4px 0; line-height: 1.5; }
+            html { background: #ffffff; }
+            body { 
+              font-family: Arial, Helvetica, sans-serif; 
+              background: #ffffff; 
+              color: #2c3e50;
+              -webkit-font-smoothing: antialiased;
+              text-rendering: optimizeLegibility;
+            }
+            .salary-slip { 
+              width: 100%; 
+              padding: 30px 40px; 
+              background: #ffffff; 
+              color: #2c3e50; 
+              min-height: 100%;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+              box-sizing: border-box;
+            }
+            
+            /* Header Section */
+            .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 35px; border-bottom: 3px solid #0b3954; padding-bottom: 25px; }
+            .company-header h1 { font-size: 28px; font-weight: 800; color: #0b3954; margin-bottom: 5px; letter-spacing: -0.5px; }
+            .company-header .subtitle { font-size: 13px; color: #7a92a8; font-weight: 500; margin-bottom: 8px; }
+            .company-header p { font-size: 11px; color: #7a92a8; margin: 2px 0; line-height: 1.6; }
+            
             .month-header { text-align: right; }
-            .month-header .month-year { font-size: 20px; font-weight: 700; color: #0b3954; margin-bottom: 8px; }
+            .month-header .month-year { font-size: 22px; font-weight: 800; color: #0b3954; margin-bottom: 8px; }
             .month-header .pay-date { font-size: 12px; color: #7a92a8; }
-            .emp-info { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 30px; }
-            .info-column { }
-            .info-row { display: flex; margin-bottom: 10px; font-size: 13px; }
-            .info-label { font-weight: 600; color: #0b3954; width: 140px; }
-            .info-value { color: #2c3e50; }
-            .tables-section { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 25px; }
-            .table-box { }
-            .table-title { font-size: 14px; font-weight: 700; color: #0b3954; margin-bottom: 12px; }
-            table { width: 100%; border-collapse: collapse; font-size: 12px; }
-            th, td { padding: 10px 0; text-align: left; border-bottom: 1px solid #e8eef6; }
-            th { font-weight: 600; color: #0b3954; }
-            td.amount { text-align: right; font-weight: 500; }
-            .total-row { border-top: 2px solid #d0dce5; border-bottom: none; font-weight: 700; color: #0b3954; padding-top: 12px; padding-bottom: 8px; }
-            .total-row.amount { color: #0b3954; }
-            .summary-section { background: #f0f5fb; border-radius: 8px; padding: 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-            .summary-item { text-align: center; }
-            .summary-label { font-size: 12px; color: #5a7285; font-weight: 500; }
-            .summary-amount { font-size: 16px; font-weight: 700; color: #0b3954; margin-top: 4px; }
-            .net-salary-box { background: #f0f5fb; border: 2px solid #0b3954; border-radius: 8px; padding: 20px; text-align: center; }
-            .net-label { font-size: 12px; font-weight: 700; color: #0b3954; letter-spacing: 0.5px; }
-            .net-amount { font-size: 32px; font-weight: 800; color: #1b5e3f; margin: 10px 0; }
-            .net-in-words { font-size: 11px; color: #5a7285; font-weight: 500; }
-            .net-amount-line { margin-top: 15px; padding-top: 15px; border-top: 1px solid #d0dce5; font-size: 11px; color: #5a7285; }
-            .compliance { font-size: 10px; color: #8da1b3; text-align: center; margin-top: 20px; border-top: 1px solid #d0dce5; padding-top: 15px; }
+            
+            /* Employee Info Section */
+            .emp-info { display: flex; justify-content: space-between; margin-bottom: 35px; }
+            .info-column { flex: 1; }
+            .info-row { display: flex; margin-bottom: 12px; font-size: 13px; }
+            .info-label { font-weight: 700; color: #0b3954; width: 120px; min-width: 120px; }
+            .info-value { color: #2c3e50; font-weight: 500; }
+            
+            /* Tables Section */
+            .tables-section { display: flex; gap: 40px; margin-bottom: 30px; }
+            .table-box { flex: 1; }
+            .table-title { font-size: 14px; font-weight: 800; color: #0b3954; margin-bottom: 15px; letter-spacing: 0.3px; text-transform: uppercase; }
+            
+            table { width: 100%; border-collapse: collapse; font-size: 13px; }
+            table tbody tr { border-bottom: 1px solid #e8eef6; }
+            table td { padding: 11px 0; text-align: left; color: #2c3e50; font-weight: 500; }
+            table td.amount { text-align: right; font-weight: 600; color: #0b3954; }
+            
+            .total-row { border-top: 2px solid #0b3954; font-weight: 800; color: #0b3954; padding-top: 14px !important; padding-bottom: 10px !important; }
+            
+            /* Summary Section */
+            .summary-section { background: #f0f5fb; border-radius: 6px; padding: 25px; margin-bottom: 30px; display: flex; justify-content: space-between; }
+            .summary-item { flex: 1; text-align: center; }
+            .summary-label { font-size: 11px; color: #5a7285; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+            .summary-amount { font-size: 18px; font-weight: 800; color: #0b3954; margin-top: 6px; }
+            
+            /* Net Salary Box */
+            .net-salary-box { background: #f0f5fb; border: 2px solid #0b3954; border-radius: 6px; padding: 28px; text-align: center; margin-bottom: 20px; }
+            .net-label { font-size: 12px; font-weight: 800; color: #0b3954; letter-spacing: 1px; text-transform: uppercase; }
+            .net-amount { font-size: 36px; font-weight: 900; color: #0b3954; margin: 12px 0; }
+            .net-in-words { font-size: 12px; color: #5a7285; font-weight: 500; }
+            .net-amount-line { margin-top: 12px; padding-top: 12px; border-top: 1px solid #d0dce5; font-size: 12px; color: #5a7285; }
+            
+            /* Compliance */
+            .compliance { font-size: 10px; color: #8da1b3; text-align: center; margin-top: 15px; border-top: 1px solid #d0dce5; padding-top: 12px; }
           </style>
         </head>
         <body>
@@ -213,9 +257,9 @@ export default function Payroll() {
             <div class="header">
               <div class="company-header">
                 <h1>${companyName}</h1>
-                <p>Professional Payroll & HR Solution</p>
+                <p class="subtitle">Professional Payroll & HR Solution</p>
                 <p>${companyAddressLine}</p>
-                <p>Email: ${adminUser.email || 'hr@company.com'} | Phone: ${adminUser.phone || 'N/A'}</p>
+                <p>Email: ${adminUser.email || 'hr@company.com'}</p>
               </div>
               <div class="month-header">
                 <div class="month-year">${monthName} ${yearStr}</div>
@@ -316,66 +360,55 @@ export default function Payroll() {
         </html>
       `;
 
-      const element = document.createElement('div');
-      element.innerHTML = htmlContent;
-      element.style.position = 'absolute';
-      element.style.left = '0';
-      element.style.top = '0';
-      element.style.margin = '0';
-      element.style.padding = '0';
-      element.style.width = '210mm';
-      element.style.height = '297mm';
-      element.style.display = 'block';
-      element.style.visibility = 'hidden';
-
-      const wrapper = document.createElement('div');
-      wrapper.style.position = 'absolute';
-      wrapper.style.left = '-999999px';
-      wrapper.style.top = '0';
-      wrapper.style.width = '210mm';
-      wrapper.style.height = '297mm';
-      wrapper.style.margin = '0';
-      wrapper.style.padding = '0';
-      wrapper.style.overflow = 'hidden';
-      wrapper.appendChild(element);
-
-      document.body.appendChild(wrapper);
+      // Create isolated temporary container
+      const tempContainer = document.createElement('div');
+      tempContainer.innerHTML = htmlContent;
+      tempContainer.style.position = 'fixed';
+      tempContainer.style.left = '-9999px';
+      tempContainer.style.top = '-9999px';
+      tempContainer.style.width = '210mm';
+      tempContainer.style.height = 'auto';
+      tempContainer.style.display = 'block';
+      tempContainer.style.zIndex = '-9999';
+      tempContainer.style.margin = '0';
+      tempContainer.style.padding = '0';
+      
+      document.body.appendChild(tempContainer);
       await new Promise(resolve => setTimeout(resolve, 300));
 
-      const slipElement = wrapper.querySelector('.salary-slip');
-      console.log('Slip element:', slipElement);
-      
-      const canvas = await html2canvas(slipElement, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        windowHeight: slipElement.scrollHeight,
-        windowWidth: '210mm',
-        width: 794,
-        height: 1122,
-      });
+      const slipElement = tempContainer.querySelector('.salary-slip');
 
-      const pdf = new jsPDF({ 
-        unit: 'mm', 
-        format: 'a4', 
-        orientation: 'portrait',
-        compress: true
-      });
-      
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pageWidth;
-      const imgHeight = pageHeight;
-      
-      pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
-      pdf.save(`Payslip_${employeeId}_${monthName}_${yearStr}.pdf`);
+      const opt = {
+        margin: [10, 10, 10, 10],
+        filename: `Payslip_${employeeId}_${monthName}_${yearStr}.pdf`,
+        image: {
+          type: 'png',
+          quality: 0.99
+        },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          windowWidth: slipElement.offsetWidth,
+          windowHeight: slipElement.offsetHeight
+        },
+        jsPDF: {
+          unit: 'mm',
+          format: 'a4',
+          orientation: 'portrait',
+          compress: false
+        }
+      };
 
-      if (document.body.contains(wrapper)) {
-        document.body.removeChild(wrapper);
-      }
+      await html2pdf()
+        .set(opt)
+        .from(slipElement)
+        .save();
+
+      // Cleanup
+      document.body.removeChild(tempContainer);
     } catch (error) {
       console.error('PDF Error:', error);
       console.error('Error details:', error.message);
@@ -666,15 +699,14 @@ export default function Payroll() {
                   </select>
                 </td>
                 <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <button 
-                      onClick={() => handleDownload(payslip)}
-                      className="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 text-sm font-medium transition-colors"
-                    >
-                      <Download size={16} />
-                      Download
-                    </button>
-                  </div>
+                  <button 
+                    onClick={() => handleDownload(payslip)}
+                    className="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 text-sm font-medium transition-colors"
+                    title="Download PDF"
+                  >
+                    <Download size={16} />
+                    Download
+                  </button>
                 </td>
               </tr>
             );
@@ -1066,167 +1098,181 @@ export default function Payroll() {
               {selectedPayslip && (
                 <div className="bg-white">
                   {/* Professional Header */}
-                  <div className="bg-linear-to-r from-slate-900 via-indigo-900 to-slate-900 text-white p-8 rounded-t-lg">
-                    <div className="flex justify-between items-start mb-6">
+                  <div className="border-b-4 border-[#0b3954] p-8 bg-white">
+                    <div className="flex justify-between items-start">
                       <div>
-                        <h1 className="text-3xl font-bold tracking-wider">EMPLOYEE MANAGEMENT SYSTEM</h1>
-                        <p className="text-sm text-indigo-200 mt-2">Professional Payroll & HR Solution</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-indigo-200 uppercase tracking-widest">Payroll Slip</p>
-                        <p className="text-2xl font-bold mt-2">
+                        <h1 className="text-4xl font-black text-[#0b3954] tracking-tight">
                           {(() => {
-                            const [yearStr, monthStr] = selectedPayslip.month.split('-');
-                            const monthNum = parseInt(monthStr, 10);
-                            const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-                            return `${monthNames[monthNum - 1]} ${yearStr}`;
+                            const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
+                            return adminUser.organization || 'EMPLOYEE MANAGEMENT SYSTEM';
+                          })()}
+                        </h1>
+                        <p className="text-sm text-[#7a92a8] font-medium mt-1">Professional Payroll & HR Solution</p>
+                        <p className="text-xs text-[#7a92a8] mt-1">
+                          {(() => {
+                            const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
+                            
+                            // Get address from different possible structures
+                            let addressLine = '';
+                            if (adminUser.address && typeof adminUser.address === 'object') {
+                              addressLine = [
+                                adminUser.address.street,
+                                adminUser.address.city,
+                                adminUser.address.state,
+                                adminUser.address.zip,
+                                adminUser.address.country
+                              ].filter(Boolean).join(', ');
+                            } else if (adminUser.address && typeof adminUser.address === 'string') {
+                              addressLine = adminUser.address;
+                            }
+                            
+                            // Fallback if no address found
+                            if (!addressLine) {
+                              addressLine = adminUser.companyAddress || adminUser.addressLine || 'Pune, India';
+                            }
+                            
+                            return addressLine;
+                          })()}
+                        </p>
+                        <p className="text-xs text-[#7a92a8] mt-1">
+                          Email: {(() => {
+                            const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
+                            return adminUser.email || 'hr@company.com';
                           })()}
                         </p>
                       </div>
-                    </div>
-                    <div className="border-t border-indigo-400 pt-4 text-xs text-indigo-100">
-                      <p>Address: Pune, India | Email: hr@company.com | Phone: +91-20-XXXX-XXXX</p>
+                      <div className="text-right">
+                        <p className="text-2xl font-black text-[#0b3954]">
+                          {(() => {
+                            const [yearStr, monthStr] = selectedPayslip.month.split('-');
+                            const monthNum = parseInt(monthStr, 10);
+                            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                            return `${monthNames[monthNum - 1]} ${yearStr}`;
+                          })()}
+                        </p>
+                        <p className="text-xs text-[#7a92a8] font-medium mt-2">Pay Date: {selectedPayslip.paymentDate ? new Date(selectedPayslip.paymentDate).toLocaleDateString('en-IN') : 'N/A'}</p>
+                      </div>
                     </div>
                   </div>
 
                   {/* Employee Details Section */}
-                  <div className="grid grid-cols-2 gap-8 p-8 border-b-2 border-gray-300">
+                  <div className="grid grid-cols-2 gap-12 p-8 border-b-2 border-gray-300">
                     {/* Left Column */}
                     <div>
-                      <h3 className="text-xs font-bold uppercase tracking-widest mb-4 text-indigo-700">Employee Information</h3>
-                      <div className="space-y-3">
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Name</p>
-                          <p className="text-sm font-bold text-gray-900 mt-1">{selectedPayslip.employee?.name || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Employee ID</p>
-                          <p className="text-sm font-bold text-gray-900 mt-1 font-mono">{selectedPayslip.employee?.employeeId || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Department</p>
-                          <p className="text-sm font-bold text-gray-900 mt-1">{selectedPayslip.employee?.department || 'N/A'}</p>
-                        </div>
+                      <div className="mb-4">
+                        <p className="text-xs text-[#0b3954] font-bold">Name:</p>
+                        <p className="text-sm font-bold text-gray-900 mt-1">{selectedPayslip.employee?.name || 'N/A'}</p>
+                      </div>
+                      <div className="mb-4">
+                        <p className="text-xs text-[#0b3954] font-bold">Employee ID:</p>
+                        <p className="text-sm font-bold text-gray-900 mt-1">{selectedPayslip.employee?.employeeId || 'N/A'}</p>
+                      </div>
+                      <div className="mb-4">
+                        <p className="text-xs text-[#0b3954] font-bold">Designation:</p>
+                        <p className="text-sm font-bold text-gray-900 mt-1">{selectedPayslip.employee?.position || 'Developer'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-[#0b3954] font-bold">Department:</p>
+                        <p className="text-sm font-bold text-gray-900 mt-1">{selectedPayslip.employee?.department || 'N/A'}</p>
                       </div>
                     </div>
 
                     {/* Right Column */}
                     <div>
-                      <h3 className="text-xs font-bold uppercase tracking-widest mb-4 text-indigo-700">Payment Details</h3>
+                      <div className="mb-4">
+                        <p className="text-xs text-[#0b3954] font-bold">Bank Account:</p>
+                        <p className="text-sm font-bold text-gray-900 mt-1">XXXX-XXXX-XXXX-XXXX</p>
+                      </div>
+                      <div className="mb-4">
+                        <p className="text-xs text-[#0b3954] font-bold">Payment Status:</p>
+                        <p className="text-sm font-bold text-gray-900 mt-1">{selectedPayslip.paymentStatus?.toUpperCase() || 'PENDING'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-[#0b3954] font-bold">Payment Method:</p>
+                        <p className="text-sm font-bold text-gray-900 mt-1">BANK TRANSFER</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Earnings & Deductions Sections */}
+                  <div className="grid grid-cols-2 gap-12 p-8 border-b border-gray-300">
+                    {/* Earnings Section */}
+                    <div>
+                      <h3 className="text-sm font-black text-[#0b3954] uppercase mb-4">Earnings & Allowances</h3>
                       <div className="space-y-3">
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Payment Method</p>
-                          <p className="text-sm font-bold text-gray-900 mt-1">{selectedPayslip.paymentMethod?.replace('-', ' ').toUpperCase() || 'Bank Transfer'}</p>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-gray-700 font-medium">Basic Salary</span>
+                          <span className="text-gray-900 font-bold">₹ {(selectedPayslip.baseSalary || 0).toLocaleString('en-IN')}</span>
                         </div>
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Payment Status</p>
-                          <div className="mt-1">
-                            <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${
-                              selectedPayslip.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' :
-                              selectedPayslip.paymentStatus === 'processed' ? 'bg-blue-100 text-blue-800' :
-                              'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {selectedPayslip.paymentStatus?.toUpperCase() || 'PENDING'}
-                            </span>
-                          </div>
+                        {selectedPayslip.allowancesBreakdown && selectedPayslip.allowancesBreakdown.length > 0 && (
+                          selectedPayslip.allowancesBreakdown.map((item, idx) => (
+                            <div key={idx} className="flex justify-between items-center text-sm">
+                              <span className="text-gray-700 font-medium">{item.name}</span>
+                              <span className="text-gray-900 font-bold">₹ {(item.amount || 0).toLocaleString('en-IN')}</span>
+                            </div>
+                          ))
+                        )}
+                        <div className="flex justify-between items-center text-sm pt-3 border-t-2 border-[#0b3954]">
+                          <span className="text-[#0b3954] font-black">TOTAL EARNINGS</span>
+                          <span className="text-[#0b3954] font-black">₹ {((selectedPayslip.baseSalary || 0) + (selectedPayslip.allowances || 0)).toLocaleString('en-IN')}</span>
                         </div>
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Payment Date</p>
-                          <p className="text-sm font-bold text-gray-900 mt-1">
-                            {selectedPayslip.paymentDate ? new Date(selectedPayslip.paymentDate).toLocaleDateString('en-IN') : 'N/A'}
-                          </p>
+                      </div>
+                    </div>
+
+                    {/* Deductions Section */}
+                    <div>
+                      <h3 className="text-sm font-black text-[#0b3954] uppercase mb-4">Deductions</h3>
+                      <div className="space-y-3">
+                        {selectedPayslip.deductionsBreakdown && selectedPayslip.deductionsBreakdown.length > 0 ? (
+                          selectedPayslip.deductionsBreakdown.map((item, idx) => (
+                            <div key={idx} className="flex justify-between items-center text-sm">
+                              <span className="text-gray-700 font-medium">{item.name}</span>
+                              <span className="text-gray-900 font-bold">₹ {(item.amount || 0).toLocaleString('en-IN')}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <>
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-gray-700 font-medium">PF</span>
+                              <span className="text-gray-900 font-bold">₹ {Math.floor((selectedPayslip.deductions || 0) * 0.5).toLocaleString('en-IN')}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-gray-700 font-medium">TDS</span>
+                              <span className="text-gray-900 font-bold">₹ {Math.floor((selectedPayslip.deductions || 0) * 0.5).toLocaleString('en-IN')}</span>
+                            </div>
+                          </>
+                        )}
+                        <div className="flex justify-between items-center text-sm pt-3 border-t-2 border-[#0b3954]">
+                          <span className="text-[#0b3954] font-black">TOTAL DEDUCTIONS</span>
+                          <span className="text-[#0b3954] font-black">₹ {(selectedPayslip.deductions || 0).toLocaleString('en-IN')}</span>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Earnings Section */}
-                  <div className="p-8 border-b border-gray-300">
-                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 pb-3 border-b-2 border-indigo-600">Earnings</h3>
-                    <div className="space-y-2.5">
-                      <div className="flex justify-between items-center py-2">
-                        <span className="text-sm text-gray-700 font-medium">Basic Salary</span>
-                        <span className="text-sm font-bold text-gray-900">₹ {(selectedPayslip.baseSalary || 0).toLocaleString('en-IN')}</span>
-                      </div>
-                      <div className="flex justify-between items-center py-2">
-                        <span className="text-sm text-gray-700 font-medium">House Rent Allowance</span>
-                        <span className="text-sm font-bold text-gray-900">₹ {(selectedPayslip.allowances || 0).toLocaleString('en-IN')}</span>
-                      </div>
-                      <div className="flex justify-between items-center py-2">
-                        <span className="text-sm text-gray-700 font-medium">Performance Bonus</span>
-                        <span className="text-sm font-bold text-gray-900">₹ {(selectedPayslip.bonus || 0).toLocaleString('en-IN')}</span>
-                      </div>
-                      <div className="flex justify-between items-center py-3 bg-indigo-50 px-3 rounded-md border border-indigo-200 font-semibold">
-                        <span className="text-sm text-indigo-900">Gross Earnings</span>
-                        <span className="text-sm text-indigo-900">₹ {((selectedPayslip.baseSalary || 0) + (selectedPayslip.allowances || 0) + (selectedPayslip.bonus || 0)).toLocaleString('en-IN')}</span>
-                      </div>
+                  {/* Summary Section */}
+                  <div className="bg-[#f0f5fb] p-8 flex justify-between items-center border-b border-gray-300">
+                    <div>
+                      <p className="text-xs text-[#5a7285] font-bold">Gross Earnings</p>
+                      <p className="text-lg font-black text-[#0b3954] mt-1">₹ {((selectedPayslip.baseSalary || 0) + (selectedPayslip.allowances || 0)).toLocaleString('en-IN')}</p>
                     </div>
-                  </div>
-
-                  {/* Deductions Section */}
-                  <div className="p-8 border-b border-gray-300">
-                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 pb-3 border-b-2 border-red-600">Deductions</h3>
-                    <div className="space-y-2.5">
-                      <div className="flex justify-between items-center py-2">
-                        <span className="text-sm text-gray-700 font-medium">Income Tax (TDS)</span>
-                        <span className="text-sm font-bold text-red-600">₹ {Math.floor((selectedPayslip.deductions || 0) * 0.4).toLocaleString('en-IN')}</span>
-                      </div>
-                      <div className="flex justify-between items-center py-2">
-                        <span className="text-sm text-gray-700 font-medium">Provident Fund</span>
-                        <span className="text-sm font-bold text-red-600">₹ {Math.floor((selectedPayslip.deductions || 0) * 0.3).toLocaleString('en-IN')}</span>
-                      </div>
-                      <div className="flex justify-between items-center py-2">
-                        <span className="text-sm text-gray-700 font-medium">Professional Tax</span>
-                        <span className="text-sm font-bold text-red-600">₹ {Math.floor((selectedPayslip.deductions || 0) * 0.3).toLocaleString('en-IN')}</span>
-                      </div>
-                      <div className="flex justify-between items-center py-3 bg-red-50 px-3 rounded-md border border-red-200 font-semibold">
-                        <span className="text-sm text-red-900">Total Deductions</span>
-                        <span className="text-sm text-red-900">₹ {(selectedPayslip.deductions || 0).toLocaleString('en-IN')}</span>
-                      </div>
+                    <div>
+                      <p className="text-xs text-[#5a7285] font-bold">Total Deductions</p>
+                      <p className="text-lg font-black text-[#0b3954] mt-1">₹ {(selectedPayslip.deductions || 0).toLocaleString('en-IN')}</p>
                     </div>
                   </div>
 
                   {/* Net Salary Section */}
-                  <div className="p-8 bg-linear-to-r from-green-50 to-emerald-50 border-b border-gray-300">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-2">Net Salary (Take Home Pay)</p>
-                        <p className="text-2xl font-bold text-green-700">₹ {(selectedPayslip.netSalary || 0).toLocaleString('en-IN')}</p>
-                      </div>
-                      <div className="text-right">
-                        <div className="bg-green-600 text-white rounded-lg p-4 text-center">
-                          <p className="text-xs font-semibold uppercase tracking-wider mb-1">Credited To</p>
-                          <p className="text-lg font-bold">Bank Account</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Summary Table */}
-                  <div className="p-8 bg-gray-50 border-b border-gray-300">
-                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4">Summary</h3>
-                    <div className="grid grid-cols-2 gap-8">
-                      <div className="space-y-3">
-                        <div className="flex justify-between py-2 border-b border-gray-200">
-                          <span className="text-sm text-gray-700">Gross Earnings:</span>
-                          <span className="text-sm font-bold text-gray-900">₹ {((selectedPayslip.baseSalary || 0) + (selectedPayslip.allowances || 0) + (selectedPayslip.bonus || 0)).toLocaleString('en-IN')}</span>
-                        </div>
-                        <div className="flex justify-between py-2 border-b border-gray-200">
-                          <span className="text-sm text-gray-700">Total Deductions:</span>
-                          <span className="text-sm font-bold text-red-600">₹ {(selectedPayslip.deductions || 0).toLocaleString('en-IN')}</span>
-                        </div>
-                      </div>
-                      <div className="bg-white p-4 rounded-lg border-2 border-green-600">
-                        <p className="text-xs text-gray-600 uppercase font-semibold tracking-wide mb-2">Net Pay</p>
-                        <p className="text-2xl font-bold text-green-600">₹ {(selectedPayslip.netSalary || 0).toLocaleString('en-IN')}</p>
-                      </div>
-                    </div>
+                  <div className="bg-[#f0f5fb] border-2 border-[#0b3954] p-8 text-center">
+                    <p className="text-xs font-black text-[#0b3954] uppercase tracking-widest">NET SALARY (IN HAND)</p>
+                    <p className="text-4xl font-black text-[#0b3954] mt-3">₹ {(selectedPayslip.netSalary || 0).toLocaleString('en-IN')}</p>
+                    <p className="text-xs text-[#5a7285] font-medium mt-2">Sixty Thousand Seven Hundred Rupees Only</p>
+                    <p className="text-xs text-[#5a7285] font-medium mt-3 border-t border-gray-300 pt-3">|| Net Amount: ₹ {(selectedPayslip.netSalary || 0).toLocaleString('en-IN')}</p>
                   </div>
 
                   {/* Footer */}
-                  <div className="p-8 bg-gray-900 text-white text-center rounded-b-lg">
-                    <p className="text-xs text-gray-300 mb-3">This is an electronically generated document. No physical signature is required as per IT Rules, 2021.</p>
-                    <p className="text-xs text-gray-400 mb-3">Confidential - For Employee Only</p>
+                  <div className="p-6 text-center bg-white border-t border-gray-300">
+                    <p className="text-xs text-[#8da1b3]">This is system generated salary slip for the month. Valid for banking / statutory purposes.</p>
                   </div>
                 </div>
               )}
