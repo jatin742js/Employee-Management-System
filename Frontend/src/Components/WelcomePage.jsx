@@ -60,7 +60,7 @@ const WelcomePage = () => {
           {/* Employee Portal Button */}
           <button
             onClick={handleEmployeePortal}
-            className="w-full px-6 py-4 bg-white border-2 border-gray-200 rounded-lg hover:bg-teal-500 hover:border-teal-500 hover:text-white transition-all duration-300 ease-in-out flex items-center justify-between group"
+            className="w-full px-6 py-4 bg-white border-2 border-gray-200 rounded-lg hover:bg-indigo-600 hover:border-indigo-600 hover:text-white transition-all duration-300 ease-in-out flex items-center justify-between group"
           >
             <span className="text-lg font-semibold text-gray-900 group-hover:text-white">
               Employee Portal

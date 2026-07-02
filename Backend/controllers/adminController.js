@@ -273,6 +273,15 @@ exports.updatePayrollStatus = asyncHandler(async (req, res) => {
   successResponse(res, 200, "Payroll status updated successfully", payroll);
 });
 
+// @route   DELETE /api/admin/payroll/:id
+// @desc    Delete payroll record
+// @access  Private/Admin
+exports.deletePayroll = asyncHandler(async (req, res) => {
+  const payroll = await PayrollService.deletePayroll(req.params.id, req.user.id);
+
+  successResponse(res, 200, "Payroll deleted successfully", payroll);
+});
+
 // @route   GET /api/admin/dashboard/stats
 // @desc    Get dashboard statistics for this admin
 // @access  Private/Admin

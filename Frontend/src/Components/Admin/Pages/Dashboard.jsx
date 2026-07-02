@@ -313,7 +313,7 @@ const AdminDashboard = () => {
         {/* Two-column layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
           {/* Recent Leave Requests */}
-          <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="lg:col-span-2 bg-white  shadow-sm border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Recent Leave Requests</h2>
               <button onClick={handleViewAllRequests} className="text-indigo-600 text-sm font-medium hover:underline">View All</button>
@@ -365,7 +365,7 @@ const AdminDashboard = () => {
           </div>
 
           {/* Sent Notifications */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="bg-white  shadow-sm border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Payroll Notifications</h2>
             </div>

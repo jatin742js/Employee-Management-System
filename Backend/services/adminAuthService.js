@@ -122,43 +122,6 @@ class AdminAuthService {
     return { message: "Password changed successfully" };
   }
 
-  // Forgot password - verify admin and reset password
-  static async forgotPassword(email, organization, newPassword) {
-    // Find admin by email (case-insensitive) and organization
-    const admin = await Admin.findOne({
-      email: { $regex: `^${email}$`, $options: 'i' },
-      department: { $regex: `^${organization}$`, $options: 'i' },
-    });
-
-    if (!admin) {
-      // Log for debugging
-      console.log('Admin search failed for:', { email, organization });
-      
-      // Try to find by email only to give better error message
-      const adminByEmail = await Admin.findOne({
-        email: { $regex: `^${email}$`, $options: 'i' },
-      });
-      
-      if (adminByEmail) {
-        throw new Error(`Your account is registered under organization: "${adminByEmail.department}". Please enter that organization name.`);
-      }
-      
-      throw new Error("Admin not found. Please verify your email and organization name.");
-    }
-
-    // Update password
-    admin.password = newPassword;
-    await admin.save();
-
-    return {
-      message: "Password reset successfully",
-      admin: {
-        id: admin._id,
-        name: admin.name,
-        email: admin.email,
-      },
-    };
-  }
 }
 
 module.exports = AdminAuthService;

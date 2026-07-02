@@ -27,19 +27,9 @@ const changePasswordValidation = [
   body("confirmPassword").exists().withMessage("Confirm password is required"),
 ];
 
-const forgotPasswordValidation = [
-  body("email").isEmail().withMessage("Invalid email"),
-  body("organization").notEmpty().withMessage("Organization is required"),
-  body("newPassword")
-    .isLength({ min: 6 })
-    .withMessage("New password must be at least 6 characters"),
-  body("confirmPassword").exists().withMessage("Confirm password is required"),
-];
-
 // Routes
 router.post("/register", registerValidation, adminAuthController.registerAdmin);
 router.post("/login", loginValidation, adminAuthController.loginAdmin);
-router.post("/forgot-password", forgotPasswordValidation, adminAuthController.forgotPassword);
 router.get("/company-info", adminAuthController.getCompanyInfo);
 router.get("/profile", verifyToken, adminOnly, adminAuthController.getAdminProfile);
 router.put("/profile", verifyToken, adminOnly, adminAuthController.updateAdminProfile);

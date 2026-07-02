@@ -60,6 +60,7 @@ router.post(
   adminController.createPayroll
 );
 router.put("/payroll/:id/status", verifyToken, adminOnly, adminController.updatePayrollStatus);
+router.delete("/payroll/:id", verifyToken, adminOnly, adminController.deletePayroll);
 
 // ============ DASHBOARD ============
 router.get("/dashboard/stats", verifyToken, adminOnly, adminController.getDashboardStats);

@@ -5,6 +5,8 @@ import adminNotificationService from "../../../services/adminNotificationService
 
 export default function EmployeePage() {
   const [employees, setEmployees] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -38,6 +40,22 @@ export default function EmployeePage() {
   const [showCredentialsModal, setShowCredentialsModal] = useState(false);
   const [createdEmployeeCredentials, setCreatedEmployeeCredentials] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
+
+  const filteredEmployees = employees.filter((emp) => {
+    if (emp.deleted) return false;
+
+    const matchesSearch =
+      !searchQuery.trim() ||
+      [emp.name, emp.role, emp.department, emp.employeeId, emp.email]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    const matchesDepartment =
+      selectedDepartment === 'all' ||
+      emp.department.toLowerCase() === selectedDepartment.toLowerCase();
+
+    return matchesSearch && matchesDepartment;
+  });
 
   useEffect(() => {
     loadEmployees();
@@ -501,28 +519,34 @@ export default function EmployeePage() {
             <input
               type="text"
               placeholder="Search employees..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="ml-3 outline-none w-full text-sm bg-transparent"
             />
           </div>
 
-          <select className="border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 bg-white hover:border-indigo-400 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition min-w-max">
+          <select
+            value={selectedDepartment}
+            onChange={(e) => setSelectedDepartment(e.target.value)}
+            className="border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 bg-white hover:border-indigo-400 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition min-w-max"
+          >
             <option value="all">All Departments</option>
-              <option value="Engineering">Engineering</option>
-              <option value="Sales">Sales</option>
-              <option value="HR">HR</option>
-              <option value="Marketing">Marketing</option>
+            <option value="Engineering">Engineering</option>
+            <option value="Sales">Sales</option>
+            <option value="HR">HR</option>
+            <option value="Marketing">Marketing</option>
           </select>
         </div>
       </div>
 
       {/* Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
-        {employees.filter(emp => !emp.deleted).length === 0 ? (
+        {filteredEmployees.length === 0 ? (
           <div className="col-span-full text-center py-12">
             <p className="text-gray-600 text-lg">No employees found. Start by adding a new employee.</p>
           </div>
         ) : (
-          employees.filter(emp => !emp.deleted).map((emp, index) => (
+          filteredEmployees.map((emp, index) => (
             <div
               key={index}
               className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow"

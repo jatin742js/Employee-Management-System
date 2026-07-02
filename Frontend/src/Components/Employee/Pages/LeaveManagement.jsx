@@ -21,6 +21,23 @@ export default function LeaveManagement() {
   const casualLeaveCount = leaveRequests.filter((leave) => leave.type === 'CASUAL').length;
   const annualLeaveCount = leaveRequests.filter((leave) => leave.type === 'ANNUAL').length;
 
+  const getLeaveTypeValue = (label = '') => {
+    const normalized = label.toLowerCase();
+    if (normalized.includes('annual')) return 'earned';
+    if (normalized.includes('casual')) return 'casual';
+    if (normalized.includes('sick')) return 'sick';
+    if (normalized.includes('maternity')) return 'maternity';
+    if (normalized.includes('paternity')) return 'paternity';
+    if (normalized.includes('unpaid')) return 'unpaid';
+    return normalized.split(' ')[0];
+  };
+
+  const formatLeaveTypeLabel = (leaveType = '') => {
+    const normalized = leaveType.toLowerCase();
+    if (normalized === 'earned') return 'ANNUAL';
+    return normalized.toUpperCase();
+  };
+
   useEffect(() => {
     loadLeaves();
   }, []);
@@ -38,7 +55,7 @@ export default function LeaveManagement() {
       if (Array.isArray(data)) {
         const formattedLeaves = data.map((leave) => ({
           id: leave._id || leave.id,
-          type: leave.leaveType?.toUpperCase() || 'LEAVE',
+          type: formatLeaveTypeLabel(leave.leaveType) || 'LEAVE',
           dates: `${new Date(leave.startDate).toLocaleDateString('en-IN')} - ${new Date(leave.endDate).toLocaleDateString('en-IN')}`,
           reason: leave.reason || '',
           status: leave.status?.toUpperCase() || 'PENDING',
@@ -119,7 +136,7 @@ export default function LeaveManagement() {
     try {
       setIsSubmitting(true);
       const response = await employeeLeaveService.requestLeave({
-        leaveType: formData.leaveType.toLowerCase().split(' ')[0],
+        leaveType: getLeaveTypeValue(formData.leaveType),
         startDate: formData.fromDate,
         endDate: formData.toDate,
         reason: formData.reason,
@@ -128,7 +145,7 @@ export default function LeaveManagement() {
 
       const newLeave = {
         id: response.data?._id || response._id || leaveRequests.length + 1,
-        type: formData.leaveType.split(" ")[0].toUpperCase(),
+        type: formData.leaveType.includes('Annual') ? 'ANNUAL' : formData.leaveType.split(" ")[0].toUpperCase(),
         dates: `${formData.fromDate} - ${formData.toDate}`,
         reason: formData.reason,
         status: "PENDING",

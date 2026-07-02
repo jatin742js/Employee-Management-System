@@ -14,11 +14,11 @@ import Payroll from './Components/Employee/Pages/Payroll'
 import LeaveManagement from './Components/Employee/Pages/LeaveManagement'
 import Settings from './Components/Employee/Pages/Settings'
 import EmployeeLayout from './Components/Employee/Layout/EmployeeLayout'
+import PayslipPrintPage from './Components/Common/PayslipPrintPage'
 
 // Admin Components
 import AdminLogin from './Components/Admin/Pages/Login'
 import AdminRegister from './Components/Admin/Pages/Register'
-import AdminForgotPassword from './Components/Admin/Pages/ForgotPassword'
 import AdminDashboard from './Components/Admin/Pages/Dashboard'
 import Employee from './Components/Admin/Pages/Employee'
 import AdminAttendance from './Components/Admin/Pages/Attendance'
@@ -65,7 +65,6 @@ const App = () => {
           {/* Admin Routes */}
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/register" element={<AdminRegister />} />
-          <Route path="/admin/forgot-password" element={<AdminForgotPassword />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="employees" element={<Employee />} />
@@ -88,6 +87,7 @@ const App = () => {
 
           {/* Welcome/Portal Selection Page - with authentication check */}
           <Route path="/" element={<RootRoute />} />
+          <Route path="/payslip-print" element={<PayslipPrintPage />} />
           
           {/* Catch-all for undefined routes */}
           <Route path="*" element={<Navigate to="/" />} />

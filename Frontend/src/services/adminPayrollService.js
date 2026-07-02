@@ -35,6 +35,16 @@ const adminPayrollService = {
       throw error.response?.data || error;
     }
   },
+
+  // Delete payroll record
+  deletePayroll: async (id) => {
+    try {
+      const response = await adminApi.delete(`/admin/payroll/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
 };
 
 export default adminPayrollService;

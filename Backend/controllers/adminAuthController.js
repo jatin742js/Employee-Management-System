@@ -99,30 +99,12 @@ exports.changeAdminPassword = asyncHandler(async (req, res) => {
   successResponse(res, 200, result.message);
 });
 
-// @route   POST /api/admin/auth/forgot-password
-// @desc    Reset forgot password
-// @access  Public
-exports.forgotPassword = asyncHandler(async (req, res) => {
-  const { email, organization, newPassword, confirmPassword } = req.body;
-
-  if (newPassword !== confirmPassword) {
-    return errorResponse(res, 400, "Passwords do not match");
-  }
-
-  const result = await AdminAuthService.forgotPassword(
-    email,
-    organization,
-    newPassword
-  );
-
-  successResponse(res, 200, "Password reset successfully", result);
-});
-
 // @route   GET /api/admin/auth/company-info
 // @desc    Get company information (public - for employees)
 // @access  Public
 exports.getCompanyInfo = asyncHandler(async (req, res) => {
   const Admin = require("../models/Admin");
+  const isPayslipContext = req.query.context === 'payslip';
   
   // Get the first admin (company) - there should typically be only one admin per company
   const admin = await Admin.findOne().select('organization email phone address');
@@ -134,7 +116,6 @@ exports.getCompanyInfo = asyncHandler(async (req, res) => {
   const companyInfo = {
     organization: admin.organization || 'EMPLOYEE MANAGEMENT SYSTEM',
     email: admin.email || 'hr@company.com',
-    phone: admin.phone || 'N/A',
     address: admin.address || {
       street: '',
       city: '',
@@ -143,6 +124,10 @@ exports.getCompanyInfo = asyncHandler(async (req, res) => {
       country: '',
     },
   };
+
+  if (!isPayslipContext) {
+    companyInfo.phone = admin.phone || 'N/A';
+  }
   
   successResponse(res, 200, "Company information retrieved", companyInfo);
 });

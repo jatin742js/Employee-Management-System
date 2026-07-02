@@ -161,8 +161,8 @@ const AdminLogin = () => {
             </div>
           </div>
 
-          {/* Remember me & Forgot password */}
-          <div className="flex items-center justify-between">
+          {/* Remember me */}
+          <div className="flex items-center justify-start">
             <div className="flex items-center">
               <input
                 id="remember-me"
@@ -175,15 +175,6 @@ const AdminLogin = () => {
               <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 cursor-pointer">
                 Remember me
               </label>
-            </div>
-            <div className="text-sm">
-              <button
-                type="button"
-                onClick={() => navigate('/admin/forgot-password')}
-                className="font-medium text-indigo-600 hover:text-indigo-500 transition cursor-pointer bg-none border-none p-0"
-              >
-                Forgot password?
-              </button>
             </div>
           </div>
 

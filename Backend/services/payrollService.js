@@ -1,4 +1,5 @@
 const Payroll = require("../models/Payroll");
+const Notification = require("../models/Notification");
 const NotificationService = require("./notificationService");
 const Admin = require("../models/Admin");
 const { emitToAdmin, emitToEmployee } = require("../utils/socketEmitter");
@@ -216,6 +217,46 @@ class PayrollService {
         message: `Your payment status has been updated to ${paymentStatus}`,
         timestamp: new Date(),
       });
+    }
+
+    return payroll;
+  }
+
+  // Delete payroll
+  static async deletePayroll(payrollId, adminId = null) {
+    const query = { _id: payrollId };
+    if (adminId) {
+      query.admin = adminId;
+    }
+
+    const payroll = await Payroll.findOneAndDelete(query).populate(
+      "employee",
+      "name employeeId email department"
+    );
+
+    if (!payroll) {
+      throw new Error("Payroll not found");
+    }
+
+    await Notification.deleteMany({ payroll: payrollId });
+
+    const admin = adminId ? await Admin.findById(adminId) : await Admin.findOne();
+    if (admin) {
+      emitToAdmin(admin._id.toString(), "payroll:deleted", {
+        payrollId: payroll._id,
+        employeeId: payroll.employee?._id || payroll.employee,
+        month: payroll.month,
+        timestamp: new Date(),
+      });
+
+      if (payroll.employee?._id) {
+        emitToEmployee(payroll.employee._id.toString(), "payroll:deleted", {
+          payrollId: payroll._id,
+          month: payroll.month,
+          message: "Your payroll record has been deleted",
+          timestamp: new Date(),
+        });
+      }
     }
 
     return payroll;

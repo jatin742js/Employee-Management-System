@@ -38,21 +38,6 @@ const adminAuthService = {
     }
   },
 
-  // Forgot password
-  forgotPassword: async (email, organization, newPassword) => {
-    try {
-      const response = await adminApi.post('/admin/auth/forgot-password', {
-        email,
-        organization,
-        newPassword,
-        confirmPassword: newPassword,
-      });
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error;
-    }
-  },
-
   // Get admin profile
   getAdminProfile: async () => {
     try {
